@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { redis } from "@/lib/redis";
 import { agents as staticAgents } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; // required for Upstash Redis
 
 export interface AgentActivityData {
   agents: {
@@ -17,21 +17,23 @@ export interface AgentActivityData {
   updatedAt: string;
 }
 
-export function GET() {
+export async function GET() {
   try {
-    const filePath = join(process.cwd(), "data", "agent-activity.json");
-    const raw = readFileSync(filePath, "utf-8");
-    const data: AgentActivityData = JSON.parse(raw);
-    return NextResponse.json(data);
-  } catch {
-    // Fallback to static data if JSON file is unavailable
-    const fallback: AgentActivityData = {
-      agents: staticAgents.map((a) => ({
-        ...a,
-        lastActive: new Date().toISOString(),
-      })),
-      updatedAt: new Date().toISOString(),
-    };
-    return NextResponse.json(fallback);
+    const data = await redis.get<AgentActivityData>("agent-activity");
+    if (data) {
+      return NextResponse.json(data);
+    }
+  } catch (e) {
+    console.error("Redis read failed, falling back to static data", e);
   }
+
+  // Fallback to static data
+  const fallback: AgentActivityData = {
+    agents: staticAgents.map((a) => ({
+      ...a,
+      lastActive: new Date().toISOString(),
+    })),
+    updatedAt: new Date().toISOString(),
+  };
+  return NextResponse.json(fallback);
 }
