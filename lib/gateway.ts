@@ -49,10 +49,10 @@ class GatewayClient extends EventEmitter {
                 minProtocol: 3,
                 maxProtocol: 3,
                 client: {
-                  id: "mission-control",
+                  id: "cli",
                   version: "1.0.0",
                   platform: "macos",
-                  mode: "operator",
+                  mode: "cli",
                 },
                 role: "operator",
                 scopes: ["operator.read", "operator.write"],

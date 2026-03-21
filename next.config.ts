@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   env: {
     MISSION_CONTROL_PORT: process.env.MISSION_CONTROL_PORT || "3100",
   },
+  // Allow Tailscale host for dev hot reload
+  allowedDevOrigins: ["solar-clawd.tail3445ba.ts.net"],
 };
 
 export default nextConfig;
