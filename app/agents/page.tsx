@@ -222,10 +222,11 @@ export default function AgentsPage() {
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        if (data.type === "agent.status" || data.type === "session.status") {
+        // Real-time agent status update from Gateway turn events
+        if (data.type === "agent.status") {
           setAgents((prev) =>
             prev.map((a) =>
-              a.id === data.agentId || a.id === data.session_id
+              a.id === data.agentId
                 ? { ...a, status: data.status, current_task: data.task || null }
                 : a
             )
@@ -233,7 +234,9 @@ export default function AgentsPage() {
         }
       } catch {}
     };
-    return () => es.close();
+    // Fallback: re-fetch agents every 15s to catch any missed events
+    const interval = setInterval(fetchAgents, 15000);
+    return () => { es.close(); clearInterval(interval); };
   }, [fetchAgents]);
 
   const createAgent = async (data: Partial<Agent>) => {

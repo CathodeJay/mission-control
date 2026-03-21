@@ -73,20 +73,31 @@ export async function GET() {
           const sessionKey = payload.sessionKey as string || "";
 
           try {
-            // Map session key to agent id (e.g. "agent:main:main" → "jupiter")
+            // Map session key to agent id
             let agentId: string | null = null;
-            if (sessionKey.includes("agent:main")) agentId = "jupiter";
+            if (sessionKey === "agent:main:main") agentId = "jupiter";
+            else if (sessionKey.includes("subagent")) agentId = "mercury";
 
             if (agentId) {
+              let newStatus: string | null = null;
+              let newTask: string | null = null;
+
               if (evtName === "turn.start") {
-                db.prepare("UPDATE agents SET status = 'thinking', current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
-                  .run(payload.message?.slice(0, 100) || "Processing...", agentId);
+                newStatus = "thinking";
+                newTask = payload.message?.slice(0, 100) || "Processing...";
               } else if (evtName === "tool.start") {
-                db.prepare("UPDATE agents SET status = 'executing', current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
-                  .run(`Using tool: ${payload.tool || "unknown"}`, agentId);
+                newStatus = "executing";
+                newTask = `Using tool: ${payload.tool || "unknown"}`;
               } else if (evtName === "turn.end" || evtName === "tool.end") {
-                db.prepare("UPDATE agents SET status = 'idle', last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
-                  .run(agentId);
+                newStatus = "idle";
+                newTask = null;
+              }
+
+              if (newStatus) {
+                db.prepare("UPDATE agents SET status = ?, current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
+                  .run(newStatus, newTask, agentId);
+                // Emit agent.status event so UI updates instantly without polling
+                send({ type: "agent.status", agentId, status: newStatus, task: newTask });
               }
             }
           } catch {}
