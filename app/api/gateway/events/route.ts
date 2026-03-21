@@ -78,8 +78,7 @@ export async function GET() {
             };
 
             for (const session of sessions) {
-              const agentId = sessionAgentMap[session.key] ||
-                (session.key.includes("subagent") ? "mercury" : null);
+              const agentId = sessionAgentMap[session.key] || (session.key.startsWith("agent:main:subagent:") ? "mercury" : null);
               if (!agentId) continue;
 
               // Active = session updated within last 15 seconds
