@@ -64,3 +64,15 @@ body {
   background: rgba(99, 102, 241, 0.08);
   border-color: rgba(99, 102, 241, 0.4);
 }
+
+/* iOS safe area support for bottom nav */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile: ensure min touch targets */
+@media (max-width: 767px) {
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

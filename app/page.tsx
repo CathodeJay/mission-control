@@ -150,7 +150,7 @@ export default function DashboardPage() {
       )}
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <KpiCard
           icon={Users}
           label="Active Agents"
@@ -181,7 +181,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Kanban Summary Chart */}
         <Card className="lg:col-span-1">
           <CardHeader>
@@ -254,7 +254,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Activity today + Gateway */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
         <KpiCard
           icon={Activity}
           label="Activity Today"
