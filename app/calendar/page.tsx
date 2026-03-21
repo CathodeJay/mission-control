@@ -156,12 +156,12 @@ function JobCard({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={handleRunNow}
               disabled={running}
               title="Run now"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition-colors disabled:opacity-40"
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition-colors disabled:opacity-40"
             >
               {running ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -173,7 +173,7 @@ function JobCard({
               onClick={handleToggle}
               disabled={toggling}
               title={job.enabled ? "Disable" : "Enable"}
-              className="p-1.5 rounded-lg transition-colors disabled:opacity-40"
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-colors disabled:opacity-40"
             >
               {toggling ? (
                 <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
@@ -263,7 +263,7 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-amber-400" />
@@ -271,17 +271,23 @@ export default function CalendarPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">Scheduled cron jobs via Gateway</p>
         </div>
-        <div className="flex items-center gap-3">
-          <SchedulerStatus status={data?.status ?? null} />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="hidden sm:block">
+            <SchedulerStatus status={data?.status ?? null} />
+          </div>
           <button
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors disabled:opacity-40"
+            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors disabled:opacity-40"
             title="Refresh"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
+      </div>
+      {/* Show scheduler status on mobile below header */}
+      <div className="sm:hidden">
+        <SchedulerStatus status={data?.status ?? null} />
       </div>
 
       {/* Error banner */}

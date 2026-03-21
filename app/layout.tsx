@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { GatewayStatus } from "@/components/GatewayStatus";
@@ -6,7 +6,13 @@ import { GatewayStatus } from "@/components/GatewayStatus";
 export const metadata: Metadata = {
   title: "Mission Control",
   description: "Jerome's empire ops dashboard",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

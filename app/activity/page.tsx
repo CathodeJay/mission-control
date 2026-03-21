@@ -78,7 +78,7 @@ function ActivityRow({ item, agents }: { item: ActivityItem; agents: Agent[] }) 
         </div>
       </div>
 
-      <Badge variant={TYPE_VARIANTS[item.type] || "default"} className="flex-shrink-0 text-xs">
+      <Badge variant={TYPE_VARIANTS[item.type] || "default"} className="hidden sm:inline-flex flex-shrink-0 text-xs">
         {item.type.replace("_", " ")}
       </Badge>
     </div>
@@ -132,20 +132,20 @@ export default function ActivityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold text-slate-100">Activity</h1>
           <p className="text-sm text-slate-500">Chronological event log</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="min-h-[44px] flex-shrink-0">
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          <span className="hidden sm:inline">Refresh</span>
         </Button>
       </div>
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select value={filterAgent} onValueChange={setFilterAgent}>
             <SelectTrigger>
               <SelectValue placeholder="All agents" />
@@ -158,7 +158,7 @@ export default function ActivityPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select value={filterType} onValueChange={setFilterType}>
             <SelectTrigger>
               <SelectValue placeholder="All types" />

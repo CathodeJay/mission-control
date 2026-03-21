@@ -58,14 +58,14 @@ function KpiCard({
   };
   return (
     <Card>
-      <CardContent className="p-4 flex items-start gap-3">
-        <div className={`p-2 rounded-lg bg-white/5 ${colorMap[color] || "text-violet-400"}`}>
+      <CardContent className="p-3 md:p-4 flex items-start gap-2 md:gap-3">
+        <div className={`p-1.5 md:p-2 rounded-lg bg-white/5 flex-shrink-0 ${colorMap[color] || "text-violet-400"}`}>
           <Icon className="w-4 h-4" />
         </div>
-        <div>
-          <p className="text-xs text-slate-500">{label}</p>
-          <p className={`text-2xl font-bold font-mono ${colorMap[color] || "text-slate-100"}`}>{value}</p>
-          {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+        <div className="min-w-0">
+          <p className="text-xs text-slate-500 truncate">{label}</p>
+          <p className={`text-xl md:text-2xl font-bold font-mono ${colorMap[color] || "text-slate-100"}`}>{value}</p>
+          {sub && <p className="text-xs text-slate-500 mt-0.5 leading-tight">{sub}</p>}
         </div>
       </CardContent>
     </Card>
@@ -130,9 +130,9 @@ export default function DashboardPage() {
 
       {/* Approval alert */}
       {approvalsPending > 0 && (
-        <div className="approval-glow rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-          <div>
+        <div className="approval-glow rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start sm:items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-amber-400">
               {approvalsPending} approval{approvalsPending > 1 ? "s" : ""} pending
             </p>
@@ -142,7 +142,7 @@ export default function DashboardPage() {
           </div>
           <a
             href="/kanban"
-            className="ml-auto text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 px-3 py-1.5 rounded-lg transition-colors"
+            className="flex-shrink-0 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 px-3 py-2 min-h-[44px] flex items-center rounded-lg transition-colors"
           >
             Review →
           </a>
@@ -279,7 +279,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Upcoming Tasks widget */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <UpcomingTasks />
       </div>
     </div>

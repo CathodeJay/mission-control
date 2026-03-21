@@ -250,11 +250,11 @@ function ProjectCard({ project, onEdit, onDelete, onRefresh }: {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={onEdit} className="p-1 rounded hover:bg-white/10">
+          <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            <button onClick={onEdit} className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-white/10">
               <Edit2 className="w-3 h-3 text-slate-400" />
             </button>
-            <button onClick={onDelete} className="p-1 rounded hover:bg-white/10">
+            <button onClick={onDelete} className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-white/10">
               <Trash2 className="w-3 h-3 text-red-400" />
             </button>
           </div>
@@ -407,18 +407,18 @@ export default function ProjectsPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         {["active", "concept", "done"].map((status) => (
-          <div key={status} className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div key={status} className="rounded-xl border border-white/10 bg-white/5 p-3 md:p-4">
             <p className="text-xs text-slate-500 capitalize">{status}</p>
-            <p className="text-2xl font-bold font-mono text-slate-100">
+            <p className="text-xl md:text-2xl font-bold font-mono text-slate-100">
               {projects.filter((p) => p.status === status).length}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {projects.map((project) => (
           <ProjectCard
             key={project.id}

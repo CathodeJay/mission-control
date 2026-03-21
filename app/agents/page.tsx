@@ -34,7 +34,7 @@ function OfficeScene({ agents }: { agents: Agent[] }) {
   const idleAgents = agents.filter((a) => a.status === "idle");
 
   return (
-    <div className="relative rounded-xl border border-white/10 bg-[#0d1117] overflow-hidden p-6 mb-6">
+    <div className="relative rounded-xl border border-white/10 bg-[#0d1117] overflow-hidden p-4 md:p-6 mb-6">
       {/* Grid floor effect */}
       <div className="absolute inset-0 opacity-20"
         style={{
@@ -46,15 +46,15 @@ function OfficeScene({ agents }: { agents: Agent[] }) {
       <div className="relative">
         <p className="text-xs text-slate-500 uppercase tracking-wider mb-4">Office</p>
 
-        <div className="flex gap-8 flex-wrap">
+        <div className="flex flex-wrap gap-4 md:gap-8">
           {/* Workstations — active agents */}
           {activeAgents.length > 0 && (
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-3 text-xs text-slate-500">
                 <Monitor className="w-3 h-3" />
                 Workstations
               </div>
-              <div className="flex gap-4 flex-wrap">
+              <div className="flex gap-3 md:gap-4 flex-wrap">
                 {activeAgents.map((agent) => (
                   <WorkStation key={agent.id} agent={agent} />
                 ))}
@@ -64,12 +64,12 @@ function OfficeScene({ agents }: { agents: Agent[] }) {
 
           {/* Rest area — idle agents */}
           {idleAgents.length > 0 && (
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-3 text-xs text-slate-500">
                 <Coffee className="w-3 h-3" />
                 Rest Area
               </div>
-              <div className="flex gap-4 flex-wrap">
+              <div className="flex gap-3 md:gap-4 flex-wrap">
                 {idleAgents.map((agent) => (
                   <RestAgent key={agent.id} agent={agent} />
                 ))}
@@ -279,7 +279,7 @@ export default function AgentsPage() {
       <OfficeScene agents={agents} />
 
       {/* Agent cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {agents.map((agent) => (
           <Card key={agent.id} className="group">
             <CardContent className="p-4">
@@ -296,7 +296,7 @@ export default function AgentsPage() {
                     <p className="font-semibold text-slate-100">{agent.name}</p>
                     <button
                       onClick={() => setEditAgent(agent)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-all"
+                      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-white/10 transition-all"
                     >
                       <Edit2 className="w-3 h-3 text-slate-400" />
                     </button>

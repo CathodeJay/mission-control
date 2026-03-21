@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
-  PointerSensor, useSensor, useSensors, closestCenter,
+  PointerSensor, TouchSensor, useSensor, useSensors, closestCenter,
 } from "@dnd-kit/core";
 import {
   SortableContext, useSortable, verticalListSortingStrategy,
@@ -165,7 +165,7 @@ function KanbanColumn({
   onAddCard: (col: CardColumn) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 min-w-[260px] w-64">
+    <div className="flex flex-col gap-3 min-w-[240px] w-60 sm:min-w-[260px] sm:w-64 snap-start">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <span className={cn("text-sm font-semibold", column.color)}>{column.label}</span>
@@ -173,7 +173,7 @@ function KanbanColumn({
         </div>
         <button
           onClick={() => onAddCard(column.id)}
-          className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-slate-300 transition-colors"
+          className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-white/10 text-slate-500 hover:text-slate-300 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
@@ -304,7 +304,8 @@ export default function KanbanPage() {
   const [addDialogCol, setAddDialogCol] = useState<CardColumn | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
   const fetchAll = useCallback(async () => {
@@ -422,7 +423,7 @@ export default function KanbanPage() {
 
       {/* Main kanban board */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory">
           {COLUMNS.map((col) => (
             <KanbanColumn
               key={col.id}
