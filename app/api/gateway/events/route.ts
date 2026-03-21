@@ -27,7 +27,7 @@ export async function GET() {
       function onEvent(event: { type: string; [key: string]: unknown }) {
         send(event);
 
-        // Handle specific event types
+        // Handle approval requests
         if (event.type === "exec.approval.requested") {
           try {
             const id = generateId();
@@ -48,13 +48,11 @@ export async function GET() {
               maxPos + 1
             );
 
-            // Update agent status
             if (event.agentId || event.session_id) {
               db.prepare("UPDATE agents SET status = 'awaiting_approval', updated_at = unixepoch() WHERE id = ? OR session_id = ?")
                 .run(event.agentId || null, event.session_id || null);
             }
 
-            // Log activity
             db.prepare(`INSERT INTO activity_feed (id, type, agent_id, description, metadata) VALUES (?, ?, ?, ?, ?)`)
               .run(generateId(), "approval_requested", event.agentId || null,
                 `Approval requested: ${(event.command as string)?.slice(0, 60)}`,
@@ -65,48 +63,43 @@ export async function GET() {
           }
         }
 
-        // Agent status updates from Gateway turn events
-        // Gateway sends: {type:"event", event:"turn.start"|"turn.end"|"tool.start"|"tool.end", payload:{sessionKey,...}}
-        if (event.type === "event") {
-          const evtName = (event as any).event as string;
-          const payload = (event as any).payload || {};
-          const sessionKey = payload.sessionKey as string || "";
-
+        // Track agent activity from health event session timestamps
+        // Gateway sends health events every ~5s with session updatedAt/age data
+        if (event.type === "event" && (event as any).event === "health") {
           try {
-            // Map session key to agent id
-            let agentId: string | null = null;
-            if (sessionKey === "agent:main:main") agentId = "jupiter";
-            else if (sessionKey.includes("subagent")) agentId = "mercury";
+            const payload = (event as any).payload || {};
+            const sessions: Array<{ key: string; updatedAt: number; age: number }> =
+              payload.sessions?.recent || [];
 
-            if (agentId) {
-              let newStatus: string | null = null;
-              let newTask: string | null = null;
+            // Map session keys → agent ids
+            const sessionAgentMap: Record<string, string> = {
+              "agent:main:main": "jupiter",
+            };
 
-              if (evtName === "turn.start") {
-                newStatus = "thinking";
-                newTask = payload.message?.slice(0, 100) || "Processing...";
-              } else if (evtName === "tool.start") {
-                newStatus = "executing";
-                newTask = `Using tool: ${payload.tool || "unknown"}`;
-              } else if (evtName === "turn.end" || evtName === "tool.end") {
-                newStatus = "idle";
-                newTask = null;
-              }
+            for (const session of sessions) {
+              const agentId = sessionAgentMap[session.key] ||
+                (session.key.includes("subagent") ? "mercury" : null);
+              if (!agentId) continue;
 
-              if (newStatus) {
-                db.prepare("UPDATE agents SET status = ?, current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
-                  .run(newStatus, newTask, agentId);
-                // Emit agent.status event so UI updates instantly without polling
-                send({ type: "agent.status", agentId, status: newStatus, task: newTask });
+              // Active = session updated within last 15 seconds
+              const isActive = session.age < 15000;
+              const newStatus = isActive ? "thinking" : "idle";
+
+              const current = db.prepare("SELECT status FROM agents WHERE id = ?").get(agentId) as { status: string } | undefined;
+              if (current && current.status !== newStatus) {
+                db.prepare("UPDATE agents SET status = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
+                  .run(newStatus, agentId);
+                send({ type: "agent.status", agentId, status: newStatus, task: null });
               }
             }
-          } catch {}
+          } catch (err) {
+            console.error("[SSE] Agent status update failed:", err);
+          }
         }
       }
 
       gateway.on("event", onEvent);
 
-      // Cleanup when client disconnects
       return () => {
         gateway.off("event", onEvent);
       };
