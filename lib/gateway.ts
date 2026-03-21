@@ -72,6 +72,13 @@ class GatewayClient extends EventEmitter {
             this.connected = true;
             this.emit("connected");
             console.log("[Gateway] Connected and authenticated");
+            // Subscribe to session events for real-time agent status
+            ws.send(JSON.stringify({
+              type: "req",
+              id: `sub-${Date.now()}`,
+              method: "sessions.subscribe",
+              params: { scope: "all" },
+            }));
             return;
           }
 

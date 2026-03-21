@@ -65,14 +65,29 @@ export async function GET() {
           }
         }
 
-        // Agent status updates
-        if (event.type === "agent.status" || event.type === "session.status") {
+        // Agent status updates from Gateway turn events
+        // Gateway sends: {type:"event", event:"turn.start"|"turn.end"|"tool.start"|"tool.end", payload:{sessionKey,...}}
+        if (event.type === "event") {
+          const evtName = (event as any).event as string;
+          const payload = (event as any).payload || {};
+          const sessionKey = payload.sessionKey as string || "";
+
           try {
-            const agentId = event.agentId as string || event.session_id as string;
-            const status = event.status as string;
-            if (agentId && status) {
-              db.prepare("UPDATE agents SET status = ?, current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ? OR session_id = ?")
-                .run(status, event.task || null, agentId, agentId);
+            // Map session key to agent id (e.g. "agent:main:main" → "jupiter")
+            let agentId: string | null = null;
+            if (sessionKey.includes("agent:main")) agentId = "jupiter";
+
+            if (agentId) {
+              if (evtName === "turn.start") {
+                db.prepare("UPDATE agents SET status = 'thinking', current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
+                  .run(payload.message?.slice(0, 100) || "Processing...", agentId);
+              } else if (evtName === "tool.start") {
+                db.prepare("UPDATE agents SET status = 'executing', current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
+                  .run(`Using tool: ${payload.tool || "unknown"}`, agentId);
+              } else if (evtName === "turn.end" || evtName === "tool.end") {
+                db.prepare("UPDATE agents SET status = 'idle', last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
+                  .run(agentId);
+              }
             }
           } catch {}
         }
