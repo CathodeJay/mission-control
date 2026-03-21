@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getGatewayClient } from "@/lib/gateway";
 import { getDb } from "@/lib/db";
 import { generateId } from "@/lib/utils";
+import { statusBus } from "@/lib/statusBus";
 
 // SSE endpoint — clients subscribe here to receive gateway events
 export async function GET() {
@@ -100,8 +101,15 @@ export async function GET() {
 
       gateway.on("event", onEvent);
 
+      // Also listen for direct agent status updates from self-report API
+      function onStatusUpdate(data: { agentId: string; status: string; task: string | null }) {
+        send({ type: "agent.status", agentId: data.agentId, status: data.status, task: data.task });
+      }
+      statusBus.on("agent.status", onStatusUpdate);
+
       return () => {
         gateway.off("event", onEvent);
+        statusBus.off("agent.status", onStatusUpdate);
       };
     },
   });

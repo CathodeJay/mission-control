@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { statusBus } from "@/lib/statusBus";
 
 // Internal endpoint for agents to self-report status
 export async function POST(
@@ -19,6 +20,9 @@ export async function POST(
   db.prepare(
     "UPDATE agents SET status = ?, current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?"
   ).run(status, current_task || null, id);
+
+  // Broadcast to all SSE subscribers immediately
+  statusBus.emit("agent.status", { agentId: id, status, task: current_task || null });
 
   return NextResponse.json({ ok: true, id, status });
 }

@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AgentAvatar } from "@/components/AgentAvatar";
+import { UpcomingTasks } from "@/components/UpcomingTasks";
 import type { AgentStatus } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
@@ -275,6 +276,11 @@ export default function DashboardPage() {
           sub="Kanban lane"
           color={approvalsPending > 0 ? "amber" : "violet"}
         />
+      </div>
+
+      {/* Upcoming Tasks widget */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <UpcomingTasks />
       </div>
     </div>
   );
