@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { redis } from "@/lib/redis";
 import { agents as staticAgents } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs"; // required for Upstash Redis
+export const runtime = "nodejs";
 
 export interface AgentActivityData {
   agents: {
@@ -17,23 +16,41 @@ export interface AgentActivityData {
   updatedAt: string;
 }
 
+const fallback = (): AgentActivityData => ({
+  agents: staticAgents.map((a) => ({
+    ...a,
+    lastActive: new Date().toISOString(),
+  })),
+  updatedAt: new Date().toISOString(),
+});
+
 export async function GET() {
-  try {
-    const data = await redis.get<AgentActivityData>("agent-activity");
-    if (data) {
-      return NextResponse.json(data);
-    }
-  } catch (e) {
-    console.error("Redis read failed, falling back to static data", e);
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!redisUrl || !redisToken) {
+    return NextResponse.json(fallback());
   }
 
-  // Fallback to static data
-  const fallback: AgentActivityData = {
-    agents: staticAgents.map((a) => ({
-      ...a,
-      lastActive: new Date().toISOString(),
-    })),
-    updatedAt: new Date().toISOString(),
-  };
-  return NextResponse.json(fallback);
+  try {
+    const res = await fetch(`${redisUrl}/get/agent-activity`, {
+      headers: { Authorization: `Bearer ${redisToken}` },
+      cache: "no-store",
+    });
+
+    if (!res.ok) throw new Error(`Redis GET failed: ${res.status}`);
+
+    const json = await res.json();
+    if (!json.result) return NextResponse.json(fallback());
+
+    const data: AgentActivityData =
+      typeof json.result === "string"
+        ? JSON.parse(json.result)
+        : json.result;
+
+    return NextResponse.json(data);
+  } catch (e) {
+    console.error("Redis fetch failed:", e);
+    return NextResponse.json(fallback());
+  }
 }
