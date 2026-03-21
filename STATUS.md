@@ -1,69 +1,49 @@
 # Mission Control — Status
 
-**Version:** 0.5.0  
+**Version:** 1.0.0  
 **Built by:** Mercury 🪐  
-**Status:** ✅ Native WebSocket chat UI — builds & runs  
-**Last updated:** 2026-03-20
+**Status:** ✅ Full rebuild — all features shipped  
+**Last updated:** 2026-03-21
 
 ---
 
-## What Was Built
+## What Was Built (v1.0 — Full Rebuild)
 
 ### Stack
 - Next.js 16.2 (App Router, TypeScript)
-- Tailwind CSS v4
-- Static data layer (`lib/data.ts`) — flat TypeScript objects
+- Tailwind CSS v4, dark theme (#0f1219)
+- SQLite via `better-sqlite3` (`data/mission-control.db`)
+- Gateway WebSocket → SSE bridge for real-time events
 
 ### Pages
-- `/` — Full dashboard (protected, redirects to `/login` if unauthenticated)
-- `/login` — Dark-themed auth gate, command-center aesthetic
-- `/chat` — Native WebSocket chat UI (protected; requires Tailscale)
-
-### Components
-| Component | Description |
+| Route | Description |
 |---|---|
-| `ActiveProjects` | Cards for all ventures with status badge, revenue, next milestone, tags |
-| `AgentStatus` | Live agent cards with animated online indicator and current task |
-| `RevenueOverview` | KPI total, MoM%, bar chart history, per-venture breakdown |
-| `NextMilestones` | Sorted milestone list with countdown, priority dots, overdue detection |
-| `StatusBadge` | Reusable badges for project/agent status |
-| `LogoutButton` | Client component in header — POSTs to `/api/auth/logout`, redirects to `/login` |
+| `/` | Metrics dashboard (KPIs, kanban chart, agent status, approval alert) |
+| `/agents` | Agent roster + office scene visualization |
+| `/kanban` | Drag-and-drop kanban with approval swimlane |
+| `/projects` | CRUD projects + nested goals with progress bars |
+| `/activity` | Filterable chronological event log |
 
-### UI
-- Dark command-center aesthetic (`#0a0c10` background, slate palette)
-- Subtle grid background texture
-- KPI strip at top (revenue, active ventures, agents online, MoM growth)
-- Responsive: 1-col mobile → 2-col desktop (3-col with sidebar)
-- Sticky header with live agent count
+### Features
+- ✅ **Agent Roster** — DiceBear-style initials avatars, status rings (idle/thinking/executing/awaiting/error), office scene
+- ✅ **Office Visualization** — Active agents at workstations, idle agents in rest area
+- ✅ **Gateway WebSocket** — Connects to OpenClaw, auto-creates approval cards from `exec.approval.requested`
+- ✅ **Kanban** — 4 columns + Awaiting Approval swimlane, DnD via @dnd-kit, approve/deny resolves Gateway
+- ✅ **Projects & Goals** — CRUD, progress bars, goal status tracking
+- ✅ **Metrics Dashboard** — KPI cards, recharts bar chart, auto-refresh 30s
+- ✅ **Activity Feed** — SSE live updates, filterable, 30-day retention
+- ✅ **SQLite** — All data persisted locally
+- ✅ **Docker** — `docker-compose.yml` included
+- ✅ **README** — Tailscale expose command included
 
-### Data (v0.3.0 — Real Ventures)
-- **4 ventures:** RIVLS (POD, in dev), Ambient YouTube (active), AI Consulting (concept), Investing (active)
-- **2 agents:** Jupiter 🪐 (COO), Mercury 🪐 (Full Stack Dev)
-- **4 milestones** mapped to actual next actions
-- Revenue history reflects pre-revenue status (Q1 2026 — no ventures monetized yet)
-- New project statuses added: `in-development`, `concept`
-- `StatusBadge` updated with human-readable labels + orange/slate colors for new statuses
-- `ActiveProjects` updated to show `revenueLabel` override (e.g. "Ongoing" for Investing)
-
----
-
-## What's Next (Phase 2)
-
-- [ ] **Live data** — Replace static `lib/data.ts` with API routes + SQLite (`better-sqlite3`)
-- [ ] **CRUD** — Add/edit projects and milestones via dashboard UI
-- [ ] **Agent activity log** — Real task history from agent sessions
-- [ ] **Revenue tracking** — Connect actual income sources (Shopify webhook, manual entry)
-- [ ] **Notifications** — Flag overdue milestones, revenue drops
-- [x] **Auth** — Cookie-based session gate (jerome / @lphons3), signed HMAC token, proxy middleware
-- [x] **Chat** — `/chat` route with native WebSocket chat UI (streaming, history, dark-themed bubbles, auto-reconnect)
-- [ ] **Deploy** — Vercel or self-hosted on VPS
-
----
-
-## Running Locally
-
+### Running
 ```bash
-npm run dev    # http://localhost:3000
+npm run dev    # http://localhost:3100
 npm run build  # production build
-npm start      # serve production build
+npm run start  # serve production build on port 3100
+```
+
+### Tailscale
+```bash
+tailscale serve --bg https+insecure://localhost:3100
 ```
