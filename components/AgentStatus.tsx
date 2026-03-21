@@ -6,7 +6,7 @@ import { agents as staticAgents } from "@/lib/data";
 import type { Agent } from "@/lib/data";
 
 interface LiveAgent extends Omit<Agent, "lastActive"> {
-  lastActive: string; // ISO string from API
+  lastActive: string; // ISO string from Upstash
 }
 
 function relativeTime(iso: string): string {
@@ -36,11 +36,27 @@ export default function AgentStatus() {
   const [error, setError] = useState(false);
 
   const fetchAgents = useCallback(async () => {
+    const upstashUrl = process.env.NEXT_PUBLIC_UPSTASH_REST_URL;
+    const upstashToken = process.env.NEXT_PUBLIC_UPSTASH_REST_TOKEN;
+
+    if (!upstashUrl || !upstashToken) {
+      setError(true);
+      return;
+    }
+
     try {
-      const res = await fetch("/api/agents", { cache: "no-store" });
-      if (!res.ok) throw new Error("non-ok");
+      const res = await fetch(`${upstashUrl}/get/agent-activity`, {
+        headers: { Authorization: `Bearer ${upstashToken}` },
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error(`Upstash GET failed: ${res.status}`);
       const data = await res.json();
-      setAgents(data.agents);
+      if (!data.result) throw new Error("No result in Upstash response");
+      const parsed =
+        typeof data.result === "string"
+          ? JSON.parse(data.result)
+          : data.result;
+      setAgents(parsed.agents);
       setError(false);
     } catch {
       setError(true);
