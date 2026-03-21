@@ -1,4 +1,4 @@
-// Gateway WebSocket client — runs server-side, broadcasts to clients via SSE/polling
+// Gateway WebSocket client — runs server-side, broadcasts to clients via SSE
 import { EventEmitter } from "events";
 
 export type GatewayEvent = {
@@ -27,23 +27,59 @@ class GatewayClient extends EventEmitter {
   private async _connect() {
     try {
       const { WebSocket } = await import("ws");
-      const ws = new WebSocket(this.url, {
-        headers: { Authorization: `Bearer ${this.token}` },
-      });
+      const ws = new WebSocket(this.url);
 
       ws.on("open", () => {
-        this.connected = true;
-        this.emit("connected");
-        console.log("[Gateway] Connected to", this.url);
-        // Authenticate
-        ws.send(JSON.stringify({ type: "auth", token: this.token }));
+        console.log("[Gateway] Socket open, waiting for challenge...");
+        this.ws = ws;
       });
 
       ws.on("message", (data: Buffer) => {
         try {
           const msg = JSON.parse(data.toString()) as GatewayEvent;
+
+          // Handle connect.challenge — respond with proper handshake
+          if (msg.type === "event" && (msg as any).event === "connect.challenge") {
+            const reqId = `mc-${Date.now()}`;
+            ws.send(JSON.stringify({
+              type: "req",
+              id: reqId,
+              method: "connect",
+              params: {
+                minProtocol: 3,
+                maxProtocol: 3,
+                client: {
+                  id: "mission-control",
+                  version: "1.0.0",
+                  platform: "macos",
+                  mode: "operator",
+                },
+                role: "operator",
+                scopes: ["operator.read", "operator.write"],
+                caps: [],
+                commands: [],
+                permissions: {},
+                auth: { token: this.token },
+                locale: "en-US",
+                userAgent: "mission-control/1.0.0",
+              },
+            }));
+            return;
+          }
+
+          // Handle hello-ok response
+          if (msg.type === "res" && (msg as any).ok === true && (msg as any).payload?.type === "hello-ok") {
+            this.connected = true;
+            this.emit("connected");
+            console.log("[Gateway] Connected and authenticated");
+            return;
+          }
+
+          // Forward all other events
           this.emit("event", msg);
-          this.emit(msg.type, msg);
+          if (msg.type === "event" && (msg as any).event) {
+            this.emit((msg as any).event, msg);
+          }
         } catch {
           // ignore parse errors
         }
@@ -62,7 +98,6 @@ class GatewayClient extends EventEmitter {
         ws.terminate();
       });
 
-      this.ws = ws;
     } catch (err) {
       console.error("[Gateway] Failed to connect:", err);
       this.reconnectTimer = setTimeout(() => this._connect(), 5000);
