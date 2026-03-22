@@ -122,6 +122,17 @@ function initSchema(db: Database.Database) {
       updated_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
+    CREATE TABLE IF NOT EXISTS journal_entries (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL UNIQUE,
+      accomplishments TEXT NOT NULL DEFAULT '',
+      lessons_learned TEXT NOT NULL DEFAULT '',
+      open_items TEXT NOT NULL DEFAULT '',
+      agent_notes TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
     -- Seed default agents if empty
     INSERT OR IGNORE INTO agents (id, name, role, bio, color, avatar_seed, avatar_style) VALUES
       ('jupiter', 'Jupiter', 'COO', 'Chief Operating Officer. Translates vision into operations.', '#8b5cf6', 'jupiter-coo', 'bottts'),

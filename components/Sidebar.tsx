@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Users, KanbanSquare, FolderKanban,
-  Activity, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain
+  BookOpen, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ const NAV = [
   { href: "/agents", icon: Users, label: "Agents" },
   { href: "/kanban", icon: KanbanSquare, label: "Kanban" },
   { href: "/projects", icon: FolderKanban, label: "Projects" },
-  { href: "/activity", icon: Activity, label: "Activity" },
+  { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/calendar", icon: CalendarClock, label: "Calendar" },
   { href: "/memory", icon: Brain, label: "Memory" },
 ];
