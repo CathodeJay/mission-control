@@ -121,11 +121,6 @@ function WorkStation({ agent }: { agent: Agent }) {
       <div className="text-center max-w-[100px]">
         <p className="text-xs text-slate-300 font-medium">{agent.name}</p>
         <p className="text-xs text-slate-500">{STATUS_LABELS[agent.status]}</p>
-        {agent.current_task && (
-          <p className="text-[10px] text-slate-600 mt-0.5 truncate" title={agent.current_task}>
-            {agent.current_task}
-          </p>
-        )}
       </div>
     </div>
   );
