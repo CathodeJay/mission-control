@@ -41,9 +41,61 @@ export async function GET() {
           .catch(() => {}); // best-effort
       });
 
+      // ── Keepalive ping every 30s ───────────────────────────────────────────
+      const pingInterval = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(`: ping\n\n`));
+        } catch {
+          // client disconnected
+        }
+      }, 30_000);
+
       // Handle gateway events
       function onEvent(event: { type: string; [key: string]: unknown }) {
         send(event);
+
+        // ── Subagent completion → mark callisto idle ──────────────────────────
+        // When a subagent session finishes, the parent session (Jupiter) receives
+        // a subagent_announce event. We use this to reset the subagent's status
+        // in the DB (agents don't always get to call agent-status.sh themselves).
+        if (
+          event.type === "event" &&
+          (
+            (event as any).event === "subagent_announce" ||
+            (event as any).event === "subagent.complete" ||
+            (event as any).event === "session.end"
+          )
+        ) {
+          try {
+            // Try to resolve the session key to an agent id
+            const sessionKey = (event as any).session_id || (event as any).sessionId || (event as any).session?.key;
+            let agentId: string | null = null;
+
+            if (sessionKey) {
+              const bySession = db.prepare("SELECT id FROM agents WHERE session_id = ?").get(sessionKey) as { id: string } | undefined;
+              if (bySession) agentId = bySession.id;
+              // Fallback: if it's a subagent key, default to callisto
+              if (!agentId && typeof sessionKey === "string" && sessionKey.startsWith("agent:main:subagent:")) {
+                agentId = "callisto";
+              }
+            }
+
+            // If it's a generic subagent_announce without session info, try the agentId field
+            if (!agentId && (event as any).agentId) {
+              agentId = (event as any).agentId;
+            }
+
+            // If we know which agent completed, set it idle
+            if (agentId) {
+              db.prepare(
+                "UPDATE agents SET status = 'idle', current_task = NULL, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ? AND status != 'idle'"
+              ).run(agentId);
+              statusBus.emit("agent.status", { agentId, status: "idle", task: null });
+            }
+          } catch (err) {
+            console.error("[SSE] Failed to update subagent status on completion:", err);
+          }
+        }
 
         // Handle approval requests
         if (event.type === "exec.approval.requested") {
@@ -163,6 +215,7 @@ export async function GET() {
       statusBus.on("agent.status", onStatusUpdate);
 
       return () => {
+        clearInterval(pingInterval);
         gateway.off("event", onEvent);
         statusBus.off("agent.status", onStatusUpdate);
       };

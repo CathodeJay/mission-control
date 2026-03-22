@@ -27,6 +27,7 @@ type Agent = {
   id: string; name: string; role: string; bio: string | null;
   status: AgentStatus; color: string; avatar_seed: string;
   current_task: string | null; model: string | null; last_seen: number | null;
+  updated_at: number | null;
 };
 
 const STATUS_LABELS: Record<AgentStatus, string> = {
@@ -47,7 +48,33 @@ function StatusBadge({ status }: { status: AgentStatus }) {
     error: { variant: "danger", label: "Error" },
   };
   const { variant, label } = map[status] || { variant: "default", label: status };
-  return <Badge variant={variant}>{label}</Badge>;
+  return (
+    <div className="flex items-center gap-1.5">
+      {status !== "idle" && (
+        <span
+          className={cn(
+            "inline-block w-2 h-2 rounded-full animate-pulse",
+            status === "thinking" && "bg-blue-400",
+            status === "working" && "bg-emerald-400",
+            status === "awaiting_approval" && "bg-amber-400",
+            status === "error" && "bg-red-400",
+          )}
+        />
+      )}
+      <Badge variant={variant}>{label}</Badge>
+    </div>
+  );
+}
+
+/** Format unix timestamp (seconds) as relative time, e.g. "2m ago" */
+function relativeTime(unixSecs: number | null): string | null {
+  if (!unixSecs) return null;
+  const diffMs = Date.now() - unixSecs * 1000;
+  if (diffMs < 0) return "just now";
+  if (diffMs < 60_000) return `${Math.floor(diffMs / 1000)}s ago`;
+  if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
+  if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)}h ago`;
+  return `${Math.floor(diffMs / 86_400_000)}d ago`;
 }
 
 // ── Team Hierarchy ────────────────────────────────────────────────────────────
@@ -386,6 +413,7 @@ export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [editAgent, setEditAgent] = useState<Agent | null>(null);
+  const [, setTick] = useState(0); // force re-render for relative timestamps
 
   const fetchAgents = useCallback(async () => {
     const a = await fetch("/api/agents").then((r) => r.json());
@@ -404,7 +432,7 @@ export default function AgentsPage() {
           setAgents((prev) =>
             prev.map((a) =>
               a.id === data.agentId
-                ? { ...a, status: data.status, current_task: data.task || null }
+                ? { ...a, status: data.status, current_task: data.task || null, updated_at: Math.floor(Date.now() / 1000) }
                 : a
             )
           );
@@ -413,7 +441,9 @@ export default function AgentsPage() {
     };
     // Fallback: re-fetch agents every 15s to catch any missed events
     const interval = setInterval(fetchAgents, 15000);
-    return () => { es.close(); clearInterval(interval); };
+    // Tick every 30s to refresh relative timestamps
+    const tickInterval = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => { es.close(); clearInterval(interval); clearInterval(tickInterval); };
   }, [fetchAgents]);
 
   const createAgent = async (data: Partial<Agent>) => {
@@ -495,6 +525,11 @@ export default function AgentsPage() {
                       </p>
                     </div>
                   ) : null}
+                  {(agent.updated_at || agent.last_seen) && (
+                    <p className="text-[10px] text-slate-600 mt-1">
+                      Updated {relativeTime(agent.updated_at ?? agent.last_seen)}
+                    </p>
+                  )}
                   {agent.bio && (
                     <p className="text-xs text-slate-600 mt-2 line-clamp-2">{agent.bio}</p>
                   )}
