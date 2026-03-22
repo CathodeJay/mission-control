@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Brain, Plus, Search, Trash2, Pencil, X, ChevronDown, ChevronUp, Tag
+  Brain, Plus, Search, Trash2, Pencil, X, ChevronDown, ChevronUp, Tag,
+  ArrowUpDown, LayoutGrid, AlignJustify
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -296,6 +297,98 @@ function MemoryModal({
   );
 }
 
+// ── TimelineView ─────────────────────────────────────────────────────────────
+type GroupKey = "today" | "yesterday" | "thisWeek" | "thisMonth" | "older";
+
+const GROUP_ORDER: GroupKey[] = ["today", "yesterday", "thisWeek", "thisMonth", "older"];
+
+const GROUP_LABELS: Record<GroupKey, string> = {
+  today: "Today",
+  yesterday: "Yesterday",
+  thisWeek: "This Week",
+  thisMonth: "This Month",
+  older: "Older",
+};
+
+function getGroupKey(ts: number): GroupKey {
+  const now = new Date();
+  const d = new Date(ts * 1000);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
+  const startOfYesterday = startOfToday - 86400;
+  const startOfWeek = startOfToday - (now.getDay() === 0 ? 6 : now.getDay() - 1) * 86400;
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000;
+
+  if (ts >= startOfToday) return "today";
+  if (ts >= startOfYesterday) return "yesterday";
+  if (ts >= startOfWeek) return "thisWeek";
+  if (ts >= startOfMonth) return "thisMonth";
+  return "older";
+}
+
+function TimelineView({
+  memories, onDelete, onEdit, onTagClick,
+}: {
+  memories: Memory[];
+  onDelete: (id: string) => void;
+  onEdit: (m: Memory) => void;
+  onTagClick: (tag: string) => void;
+}) {
+  const [collapsed, setCollapsed] = useState<Partial<Record<GroupKey, boolean>>>({});
+
+  const groups = GROUP_ORDER.reduce<Record<GroupKey, Memory[]>>((acc, k) => {
+    acc[k] = [];
+    return acc;
+  }, {} as Record<GroupKey, Memory[]>);
+
+  for (const m of memories) {
+    const key = getGroupKey(m.created_at);
+    groups[key].push(m);
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {GROUP_ORDER.map((key) => {
+        if (groups[key].length === 0) return null;
+        const isCollapsed = collapsed[key];
+        return (
+          <div key={key}>
+            {/* Group header */}
+            <button
+              onClick={() => setCollapsed((c) => ({ ...c, [key]: !c[key] }))}
+              className="flex items-center gap-2 mb-3 w-full text-left group"
+            >
+              <ChevronDown className={cn(
+                "w-3.5 h-3.5 text-slate-500 transition-transform flex-shrink-0",
+                isCollapsed && "-rotate-90"
+              )} />
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 group-hover:text-slate-200">
+                {GROUP_LABELS[key]}
+              </span>
+              <span className="text-xs text-slate-600">({groups[key].length})</span>
+              <div className="flex-1 h-px bg-white/5 ml-2" />
+            </button>
+
+            {/* Cards */}
+            {!isCollapsed && (
+              <div className="flex flex-col gap-3">
+                {groups[key].map((m) => (
+                  <MemoryCard
+                    key={m.id}
+                    memory={m}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                    onTagClick={onTagClick}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function MemoryPage() {
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -305,6 +398,8 @@ export default function MemoryPage() {
   const [filterAgent, setFilterAgent] = useState("");
   const [filterImportance, setFilterImportance] = useState<Importance | "all">("all");
   const [filterTag, setFilterTag] = useState("");
+  const [sortDesc, setSortDesc] = useState(true); // true = newest first
+  const [viewMode, setViewMode] = useState<"grid" | "timeline">("grid");
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Memory | null>(null);
 
@@ -341,8 +436,8 @@ export default function MemoryPage() {
     setEditTarget(null);
   }
 
-  // Client-side filtering
-  const filtered = memories.filter((m) => {
+  // Client-side filtering + sorting
+  const filtered = [...memories].filter((m) => {
     if (filterAgent && m.agent_id !== filterAgent) return false;
     if (filterImportance !== "all" && m.importance !== filterImportance) return false;
     if (filterTag) {
@@ -354,7 +449,7 @@ export default function MemoryPage() {
       if (!m.title.toLowerCase().includes(q) && !m.content.toLowerCase().includes(q)) return false;
     }
     return true;
-  });
+  }).sort((a, b) => sortDesc ? b.created_at - a.created_at : a.created_at - b.created_at);
 
   // Collect all tags for the tag cloud
   const allTags = Array.from(new Set(memories.flatMap((m) => parseTags(m.tags)))).sort();
@@ -432,6 +527,40 @@ export default function MemoryPage() {
           ))}
         </div>
 
+        {/* Sort toggle */}
+        <button
+          onClick={() => setSortDesc((d) => !d)}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#161b27] border border-white/10 text-slate-400 hover:text-white transition-colors"
+          title={sortDesc ? "Newest first → Oldest first" : "Oldest first → Newest first"}
+        >
+          <ArrowUpDown className="w-3 h-3" />
+          {sortDesc ? "Newest" : "Oldest"}
+        </button>
+
+        {/* View mode toggle */}
+        <div className="flex items-center gap-0.5 ml-auto">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              viewMode === "grid" ? "bg-violet-600 text-white" : "text-slate-500 hover:text-white"
+            )}
+            title="Grid view"
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setViewMode("timeline")}
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              viewMode === "timeline" ? "bg-violet-600 text-white" : "text-slate-500 hover:text-white"
+            )}
+            title="Timeline view"
+          >
+            <AlignJustify className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
         {/* Tag filter clear */}
         {filterTag && (
           <button
@@ -473,7 +602,7 @@ export default function MemoryPage() {
         </p>
       )}
 
-      {/* Grid */}
+      {/* Grid vs Timeline view */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
@@ -492,7 +621,7 @@ export default function MemoryPage() {
               : "Start building the collective knowledge base. Add your first memory!"}
           </p>
         </div>
-      ) : (
+      ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((m) => (
             <MemoryCard
@@ -504,6 +633,9 @@ export default function MemoryPage() {
             />
           ))}
         </div>
+      ) : (
+        // Timeline view — group by time period
+        <TimelineView memories={filtered} onDelete={handleDelete} onEdit={openEdit} onTagClick={(t) => setFilterTag(filterTag === t ? "" : t)} />
       )}
 
       {/* Modal */}
