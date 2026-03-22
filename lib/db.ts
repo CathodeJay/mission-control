@@ -18,8 +18,19 @@ export function getDb(): Database.Database {
     _db.pragma("journal_mode = WAL");
     _db.pragma("foreign_keys = ON");
     initSchema(_db);
+    runMigrations(_db);
   }
   return _db;
+}
+
+function runMigrations(db: Database.Database) {
+  // SQLite doesn't support IF NOT EXISTS for columns — use try/catch
+  const migrations = [
+    "ALTER TABLE agents ADD COLUMN model TEXT",
+  ];
+  for (const sql of migrations) {
+    try { db.exec(sql); } catch { /* column already exists */ }
+  }
 }
 
 function initSchema(db: Database.Database) {
@@ -122,8 +133,7 @@ function initSchema(db: Database.Database) {
       ('ambient-yt', 'Ambient YouTube', 'Passive income via ambient video content.', 'active', '#10b981'),
       ('ai-consulting', 'AI Consulting', 'B2B AI consulting and automation services.', 'concept', '#6366f1');
 
-    -- Add model column if it doesn't exist (migration for existing DBs)
-    ALTER TABLE agents ADD COLUMN IF NOT EXISTS model TEXT;
+
   `);
 }
 
