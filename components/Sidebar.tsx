@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Users, KanbanSquare, FolderKanban,
-  BookOpen, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain, FileText, FlaskConical
+  BookOpen, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain, FileText, FlaskConical,
+  MoreHorizontal, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +21,30 @@ const NAV = [
   { href: "/research-lab", icon: FlaskConical, label: "Research Lab" },
 ];
 
+// Primary tabs shown in bottom nav (most used)
+const PRIMARY_NAV = [
+  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/kanban", icon: KanbanSquare, label: "Kanban" },
+  { href: "/journal", icon: BookOpen, label: "Journal" },
+  { href: "/agents", icon: Users, label: "Agents" },
+];
+
+// Overflow tabs shown in the "More" drawer
+const OVERFLOW_NAV = [
+  { href: "/projects", icon: FolderKanban, label: "Projects" },
+  { href: "/calendar", icon: CalendarClock, label: "Calendar" },
+  { href: "/memory", icon: Brain, label: "Memory" },
+  { href: "/documents", icon: FileText, label: "Documents" },
+  { href: "/research-lab", icon: FlaskConical, label: "Research Lab" },
+];
+
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const pathname = usePathname();
+
+  // Check if current page is in overflow nav
+  const isOverflowActive = OVERFLOW_NAV.some(({ href }) => pathname === href);
 
   return (
     <>
@@ -78,27 +100,78 @@ export function Sidebar() {
 
       {/* ── Mobile bottom nav ────────────────────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0d1117] border-t border-white/10 pb-safe">
-        <div className="grid grid-cols-4">
-          {NAV.map(({ href, icon: Icon, label }) => {
+        <div className="grid grid-cols-5">
+          {PRIMARY_NAV.map(({ href, icon: Icon, label }) => {
             const active = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
+                onClick={() => setMoreOpen(false)}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-1 py-2 transition-colors",
+                  "flex flex-col items-center gap-0.5 px-1 py-2.5 transition-colors",
                   active
                     ? "text-violet-400"
                     : "text-slate-500 active:text-slate-300"
                 )}
               >
-                <Icon className={cn("w-4 h-4", active && "drop-shadow-[0_0_6px_rgba(139,92,246,0.8)]")} />
-                <span className="text-[9px] leading-tight truncate max-w-full">{label}</span>
+                <Icon className={cn("w-5 h-5", active && "drop-shadow-[0_0_6px_rgba(139,92,246,0.8)]")} />
+                <span className="text-[10px] leading-tight truncate max-w-full">{label}</span>
               </Link>
             );
           })}
+
+          {/* More button */}
+          <button
+            onClick={() => setMoreOpen(!moreOpen)}
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-1 py-2.5 transition-colors w-full",
+              (moreOpen || isOverflowActive)
+                ? "text-violet-400"
+                : "text-slate-500 active:text-slate-300"
+            )}
+          >
+            {moreOpen
+              ? <X className="w-5 h-5" />
+              : <MoreHorizontal className={cn("w-5 h-5", isOverflowActive && "drop-shadow-[0_0_6px_rgba(139,92,246,0.8)]")} />
+            }
+            <span className="text-[10px] leading-tight">More</span>
+          </button>
         </div>
       </nav>
+
+      {/* ── Mobile "More" drawer ─────────────────────────────── */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-20" onClick={() => setMoreOpen(false)}>
+          <div
+            className="absolute bottom-[57px] left-0 right-0 bg-[#0d1117] border-t border-white/10 px-4 py-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 px-1">More</p>
+            <div className="grid grid-cols-5 gap-1">
+              {OVERFLOW_NAV.map(({ href, icon: Icon, label }) => {
+                const active = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMoreOpen(false)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 px-1 py-2.5 rounded-xl transition-colors",
+                      active
+                        ? "text-violet-400 bg-violet-600/10"
+                        : "text-slate-400 hover:text-slate-200 active:bg-white/5"
+                    )}
+                  >
+                    <Icon className={cn("w-5 h-5", active && "drop-shadow-[0_0_6px_rgba(139,92,246,0.8)]")} />
+                    <span className="text-[10px] leading-tight text-center">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
