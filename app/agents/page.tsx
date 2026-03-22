@@ -118,9 +118,14 @@ function WorkStation({ agent }: { agent: Agent }) {
       </div>
       {/* Agent */}
       <AgentAvatar seed={agent.avatar_seed} name={agent.name} status={agent.status} color={agent.color} size="sm" />
-      <div className="text-center">
+      <div className="text-center max-w-[100px]">
         <p className="text-xs text-slate-300 font-medium">{agent.name}</p>
-        <p className="text-xs text-slate-600 max-w-[80px] truncate">{STATUS_LABELS[agent.status]}</p>
+        <p className="text-xs text-slate-500">{STATUS_LABELS[agent.status]}</p>
+        {agent.current_task && (
+          <p className="text-[10px] text-slate-600 mt-0.5 truncate" title={agent.current_task}>
+            {agent.current_task}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -303,9 +308,13 @@ export default function AgentsPage() {
                   </div>
                   <p className="text-xs text-slate-400 mb-1">{agent.role}</p>
                   <StatusBadge status={agent.status} />
-                  {agent.current_task && (
-                    <p className="text-xs text-slate-500 mt-1 truncate">{agent.current_task}</p>
-                  )}
+                  {agent.current_task && agent.status !== "idle" ? (
+                    <div className="mt-1.5 px-2 py-1 rounded bg-slate-800/80 border border-slate-700/50">
+                      <p className="text-[11px] text-slate-300 truncate" title={agent.current_task}>
+                        📌 {agent.current_task}
+                      </p>
+                    </div>
+                  ) : null}
                   {agent.bio && (
                     <p className="text-xs text-slate-600 mt-2 line-clamp-2">{agent.bio}</p>
                   )}
