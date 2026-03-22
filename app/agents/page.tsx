@@ -14,13 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentStatus } from "@/lib/utils";
 import { AGENT_COLORS } from "@/lib/utils";
-import { Monitor, Coffee, Plus, Edit2, ChevronDown, Crown, Code2, GitBranch, Search } from "lucide-react";
+import { Monitor, Coffee, Edit2, ChevronDown, Crown, Code2, GitBranch, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Agent = {
@@ -529,7 +529,6 @@ function AgentForm({
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [addOpen, setAddOpen] = useState(false);
   const [editAgent, setEditAgent] = useState<Agent | null>(null);
   const [, setTick] = useState(0); // force re-render for relative timestamps
 
@@ -598,15 +597,6 @@ export default function AgentsPage() {
     };
   }, [fetchAgents]);
 
-  const createAgent = async (data: Partial<Agent>) => {
-    await fetch("/api/agents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    await fetchAgents();
-  };
-
   const updateAgent = async (id: string, data: Partial<Agent>) => {
     await fetch(`/api/agents/${id}`, {
       method: "PATCH",
@@ -623,15 +613,6 @@ export default function AgentsPage() {
           <h1 className="text-xl font-bold text-slate-100">Agents</h1>
           <p className="text-sm text-slate-500">Your AI team</p>
         </div>
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="w-4 h-4" /> Add Agent</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>New Agent</DialogTitle></DialogHeader>
-            <AgentForm onSave={createAgent} onClose={() => setAddOpen(false)} />
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Office scene */}
