@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentStatus } from "@/lib/utils";
 import { AGENT_COLORS } from "@/lib/utils";
-import { Monitor, Coffee, Plus, Edit2, ChevronDown, Crown, Code2, GitBranch } from "lucide-react";
+import { Monitor, Coffee, Plus, Edit2, ChevronDown, Crown, Code2, GitBranch, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Agent = {
@@ -82,6 +82,7 @@ function relativeTime(unixSecs: number | null): string | null {
 const KNOWN_HIERARCHY: Record<string, { rank: number; icon: React.ElementType; reportsTo: string | null; badge: string }> = {
   jupiter: { rank: 0, icon: Crown, reportsTo: null, badge: "COO" },
   callisto: { rank: 1, icon: Code2, reportsTo: "jupiter", badge: "Dev" },
+  europa: { rank: 2, icon: Search, reportsTo: "jupiter", badge: "Research" },
 };
 
 function getHierarchyInfo(agentId: string) {
@@ -220,6 +221,10 @@ function TeamHierarchy({ agents }: { agents: Agent[] }) {
         <div className="flex items-center gap-1.5">
           <Code2 className="w-3 h-3 text-slate-500" />
           <span>Coding subagent</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Search className="w-3 h-3 text-slate-500" />
+          <span>Research subagent</span>
         </div>
         <div className="flex items-center gap-1.5">
           <ChevronDown className="w-3 h-3 text-slate-600" />
