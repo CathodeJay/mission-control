@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 type Agent = {
   id: string; name: string; role: string; bio: string | null;
   status: AgentStatus; color: string; avatar_seed: string;
-  current_task: string | null; last_seen: number | null;
+  current_task: string | null; model: string | null; last_seen: number | null;
 };
 
 const STATUS_LABELS: Record<AgentStatus, string> = {
@@ -154,6 +154,7 @@ function AgentForm({
     role: initial?.role || "",
     bio: initial?.bio || "",
     color: initial?.color || AGENT_COLORS[0],
+    model: initial?.model || "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -179,6 +180,10 @@ function AgentForm({
       <div className="space-y-1">
         <label className="text-xs text-slate-400">Bio</label>
         <Textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={2} />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-slate-400">Model</label>
+        <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="e.g. claude-sonnet-4-6" />
       </div>
       <div className="space-y-1">
         <label className="text-xs text-slate-400">Color</label>
@@ -301,7 +306,10 @@ export default function AgentsPage() {
                       <Edit2 className="w-3 h-3 text-slate-400" />
                     </button>
                   </div>
-                  <p className="text-xs text-slate-400 mb-1">{agent.role}</p>
+                  <p className="text-xs text-slate-400 mb-0.5">{agent.role}</p>
+                  {agent.model && (
+                    <p className="text-[10px] text-slate-600 font-mono mb-1">{agent.model}</p>
+                  )}
                   <StatusBadge status={agent.status} />
                   {agent.current_task && agent.status !== "idle" ? (
                     <div className="mt-1.5 px-2 py-1 rounded bg-slate-800/80 border border-slate-700/50">

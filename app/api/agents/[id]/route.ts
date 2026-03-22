@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const db = getDb();
   const body = await req.json();
-  const allowed = ["name", "role", "bio", "color", "avatar_seed", "avatar_style", "status", "current_task", "session_id", "last_seen"];
+  const allowed = ["name", "role", "bio", "color", "avatar_seed", "avatar_style", "status", "current_task", "session_id", "last_seen", "model"];
   const sets = Object.keys(body)
     .filter((k) => allowed.includes(k))
     .map((k) => `${k} = ?`);

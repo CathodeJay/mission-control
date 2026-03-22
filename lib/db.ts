@@ -34,6 +34,7 @@ function initSchema(db: Database.Database) {
       avatar_style TEXT DEFAULT 'bottts',
       status TEXT NOT NULL DEFAULT 'idle',
       current_task TEXT,
+      model TEXT,
       session_id TEXT,
       last_seen INTEGER,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
@@ -120,6 +121,9 @@ function initSchema(db: Database.Database) {
       ('rivls', 'RIVLS', 'Print-on-demand brand. Apparel + accessories.', 'active', '#f59e0b'),
       ('ambient-yt', 'Ambient YouTube', 'Passive income via ambient video content.', 'active', '#10b981'),
       ('ai-consulting', 'AI Consulting', 'B2B AI consulting and automation services.', 'concept', '#6366f1');
+
+    -- Add model column if it doesn't exist (migration for existing DBs)
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS model TEXT;
   `);
 }
 
