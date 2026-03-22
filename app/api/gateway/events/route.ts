@@ -142,62 +142,57 @@ export async function GET() {
             const sessions: Array<{ key: string; updatedAt: number; age: number }> =
               Array.isArray(payload.sessions?.recent) ? payload.sessions.recent : [];
 
-            // Dynamically resolve session keys → agent IDs from DB
-            // agent:main:main → jupiter (main session)
-            // agent:main:subagent:* → look up which subagent is currently active
-            // Future agents: any agent with a matching session_id in DB
+            // Build session_id → agent_id map from DB (set via bind-session endpoint at spawn time)
+            // This is the authoritative mapping — no guessing, no hardcoded fallbacks.
             const allAgents = db.prepare("SELECT id, session_id FROM agents").all() as { id: string; session_id: string | null }[];
             const sessionIdMap: Record<string, string> = {};
             for (const a of allAgents) {
               if (a.session_id) sessionIdMap[a.session_id] = a.id;
             }
 
-            // Track which subagent session is most recently active
-            let latestSubagentKey: string | null = null;
-            let latestSubagentAge = Infinity;
-            for (const session of sessions) {
-              if (session?.key?.startsWith("agent:main:subagent:") && session.age < latestSubagentAge) {
-                latestSubagentAge = session.age;
-                latestSubagentKey = session.key;
-              }
-            }
-
             for (const session of sessions) {
               // Ensure session object is valid before accessing properties
               if (!session || typeof session.key !== 'string') continue;
 
-              // Resolve agent ID: main session = jupiter, subagent = callisto (most recent), others by session_id
+              // Resolve agent ID:
+              //   agent:main:main → always jupiter (the main session)
+              //   agent:main:subagent:* → only if session_id was registered via bind-session
+              //   anything else → look up by session_id (future named agents)
               let agentId: string | null = null;
               if (session.key === "agent:main:main") {
                 agentId = "jupiter";
-              } else if (session.key.startsWith("agent:main:subagent:") && session.key === latestSubagentKey) {
-                // Map most recently active subagent to callisto
-                agentId = sessionIdMap[session.key] || "callisto";
               } else if (sessionIdMap[session.key]) {
                 agentId = sessionIdMap[session.key];
               }
+              // If no binding found for a subagent session, skip — don't guess.
+              // The subagent_announce handler below will idle it on completion,
+              // and bind-session registration happens at spawn time.
               if (!agentId) continue;
 
               // Agent is active if its session was updated recently (e.g., less than 15 seconds ago)
               const isActive = session.age < 15000; // 15 seconds threshold
-              let newStatus: string = 'idle';
-              let newTask: string | null = null;
 
               if (isActive) {
-                newStatus = "thinking";
-                // Use task from payload if available, otherwise default to "Processing..."
-                newTask = payload.task || "Processing...";
+                // Update last_seen but DON'T override a precise status (working/awaiting_approval/error)
+                // set via agent-status.sh — only promote idle→thinking if session is active.
+                const current = db.prepare("SELECT status, current_task FROM agents WHERE id = ?").get(agentId) as { status: string; current_task: string | null } | undefined;
+                if (current && current.status === "idle") {
+                  // Session active but agent shows idle → bump to thinking
+                  db.prepare("UPDATE agents SET status = 'thinking', last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
+                    .run(agentId);
+                  send({ type: "agent.status", agentId, status: "thinking", task: current.current_task });
+                } else if (current) {
+                  // Just refresh last_seen so "Updated Xs ago" stays current
+                  db.prepare("UPDATE agents SET last_seen = unixepoch() WHERE id = ?").run(agentId);
+                }
               } else {
-                newStatus = "idle";
-                newTask = null;
-              }
-
-              const current = db.prepare("SELECT status, current_task FROM agents WHERE id = ?").get(agentId) as { status: string, current_task: string | null } | undefined;
-              
-              if (current && (current.status !== newStatus || current.current_task !== newTask)) {
-                db.prepare("UPDATE agents SET status = ?, current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
-                  .run(newStatus, newTask, agentId);
-                send({ type: "agent.status", agentId, status: newStatus, task: newTask });
+                // Session stale — if agent is still showing active, mark idle
+                const current = db.prepare("SELECT status FROM agents WHERE id = ?").get(agentId) as { status: string } | undefined;
+                if (current && current.status !== "idle") {
+                  db.prepare("UPDATE agents SET status = 'idle', current_task = NULL, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
+                    .run(agentId);
+                  send({ type: "agent.status", agentId, status: "idle", task: null });
+                }
               }
             }
           } catch (err) {
