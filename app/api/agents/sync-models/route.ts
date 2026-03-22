@@ -27,7 +27,7 @@ export async function POST() {
     const modelMap: Record<string, string> = {
       jupiter: primaryModel,
       callisto: callistoModel,
-      saturn: "openrouter/auto",
+      europa: "openrouter/openai/gpt-4o",
     };
 
     for (const [agentId, model] of Object.entries(modelMap)) {

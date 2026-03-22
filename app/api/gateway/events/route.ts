@@ -4,7 +4,7 @@
 //   END:   agent-status.sh <agent_id> idle
 // Example: agent-status.sh mercury executing "Building new feature"
 //          agent-status.sh mercury idle
-// Agent IDs: jupiter, mercury, saturn
+// Agent IDs: jupiter, callisto, europa
 // Statuses: thinking, working, idle, awaiting_approval, error
 
 import { NextResponse } from "next/server";
