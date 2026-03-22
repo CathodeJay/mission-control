@@ -7,6 +7,119 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// ── MemoryArchitecturePanel ──────────────────────────────────────────────────
+function MemoryArchitecturePanel() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-6 rounded-xl border border-violet-500/20 bg-violet-500/5">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Brain className="w-4 h-4 text-violet-400 flex-shrink-0" />
+          <span className="text-sm font-semibold text-violet-300">How Memory Works</span>
+          <span className="text-xs text-violet-400/60 hidden sm:inline">· Two layers, one team brain</span>
+        </div>
+        {open ? (
+          <ChevronUp className="w-4 h-4 text-violet-400 flex-shrink-0" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-violet-400 flex-shrink-0" />
+        )}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-4 border-t border-violet-500/15 pt-4">
+          {/* Two layers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-lg bg-[#0f1219] border border-white/10 p-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📄</span>
+                <span className="text-xs font-semibold text-white">MEMORY.md — Long-Term Memory</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                A curated markdown file per agent (e.g. <code className="bg-white/5 px-1 rounded text-violet-300">MEMORY.md</code> for Jupiter).
+                Think of it as a personal journal — distilled wisdom, decisions, and context from past sessions.
+                <strong className="text-slate-300"> Only read in a main session</strong> (never in group chats) because it contains private info.
+                You read it, update it, and it travels with you as your long-term continuity.
+              </p>
+              <div className="text-[11px] text-slate-500 font-mono pt-1 border-t border-white/5">
+                Location: workspace/MEMORY.md
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-[#0f1219] border border-white/10 p-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🧠</span>
+                <span className="text-xs font-semibold text-white">Collective Memory — This Page</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                A <strong className="text-slate-300">shared team brain</strong> stored in SQLite.
+                Every agent can read and write to it. Jerome can see it here in real-time.
+                It&apos;s for cross-agent knowledge: architecture decisions, lessons learned, team conventions,
+                anything that should survive beyond a single agent&apos;s session.
+              </p>
+              <div className="text-[11px] text-slate-500 font-mono pt-1 border-t border-white/5">
+                Storage: SQLite → memories table
+              </div>
+            </div>
+          </div>
+
+          {/* How entries get in */}
+          <div className="rounded-lg bg-[#0f1219] border border-white/10 p-3 space-y-2">
+            <div className="text-xs font-semibold text-white mb-1">How entries get written</div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-xs text-slate-400 font-mono flex-wrap">
+              <span className="bg-white/5 px-2 py-1 rounded text-slate-300">write-memory.sh</span>
+              <span className="text-slate-600 hidden sm:inline">→</span>
+              <span className="bg-white/5 px-2 py-1 rounded text-slate-300">POST /api/memory</span>
+              <span className="text-slate-600 hidden sm:inline">→</span>
+              <span className="bg-white/5 px-2 py-1 rounded text-slate-300">SQLite memories table</span>
+              <span className="text-slate-600 hidden sm:inline">→</span>
+              <span className="bg-white/5 px-2 py-1 rounded text-violet-300">This page ✓</span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Usage: <code className="bg-white/5 px-1 rounded">write-memory.sh &lt;agent_id&gt; &lt;importance&gt; &quot;Title&quot; &quot;Content&quot; &quot;tags&quot;</code><br />
+              Any agent (Jupiter, Callisto, Europa, Io…) can call this script. Jerome can also add entries manually via the <strong className="text-slate-400">+ Add Memory</strong> button above.
+              Memories are read at session start via <code className="bg-white/5 px-1 rounded">fetch-memories.sh critical,high</code>.
+            </p>
+          </div>
+
+          {/* Importance levels */}
+          <div className="rounded-lg bg-[#0f1219] border border-white/10 p-3">
+            <div className="text-xs font-semibold text-white mb-2">Importance levels</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { level: "critical", color: "text-red-400", bg: "bg-red-500/10 border-red-500/20", desc: "Must-know for all agents. Always fetched first." },
+                { level: "high", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", desc: "Very useful cross-agent context. Fetched by default." },
+                { level: "normal", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20", desc: "Good to know. Fetched on demand or when relevant." },
+                { level: "low", color: "text-slate-400", bg: "bg-slate-500/10 border-slate-500/20", desc: "Nice to have. Background context, rarely fetched proactively." },
+              ].map(({ level, color, bg, desc }) => (
+                <div key={level} className={cn("rounded-lg border p-2 space-y-1", bg)}>
+                  <span className={cn("text-[11px] font-bold capitalize", color)}>{level}</span>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* MEMORY.md vs Collective */}
+          <div className="rounded-lg bg-amber-500/5 border border-amber-500/15 p-3">
+            <div className="text-xs font-semibold text-amber-300 mb-1">MEMORY.md vs Collective Memory — at a glance</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px] text-slate-400">
+              <div><span className="text-slate-300">Scope:</span> personal vs team-wide</div>
+              <div><span className="text-slate-300">Format:</span> markdown file vs SQLite rows</div>
+              <div><span className="text-slate-300">Access:</span> agent-private vs Jerome sees it live</div>
+              <div><span className="text-slate-300">Loaded:</span> main session only vs every agent every session</div>
+              <div><span className="text-slate-300">Written by:</span> owning agent vs any agent via script</div>
+              <div><span className="text-slate-300">Purpose:</span> personal continuity vs shared team brain</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Importance = "low" | "normal" | "high" | "critical";
 type SortOrder = "newest" | "oldest";
 type ViewMode = "grid" | "timeline";
@@ -590,6 +703,9 @@ export default function MemoryPage() {
           <span className="hidden sm:inline">Add Memory</span>
         </button>
       </div>
+
+      {/* Architecture explanation */}
+      <MemoryArchitecturePanel />
 
       {/* Quick stats */}
       {!loading && memories.length > 0 && (
