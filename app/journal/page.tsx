@@ -315,6 +315,70 @@ const GROUP_ORDER: GroupLabel[] = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function GroupedEntryList({
+  groupedEntries,
+  onEdit,
+  onDelete,
+}: {
+  groupedEntries: Record<GroupLabel, JournalEntry[]>;
+  onEdit: (e: JournalEntry) => void;
+  onDelete: (id: string) => void;
+}) {
+  // All groups expanded by default
+  const [collapsed, setCollapsed] = useState<Partial<Record<GroupLabel, boolean>>>({});
+
+  function toggleGroup(label: GroupLabel) {
+    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
+
+  return (
+    <div className="space-y-8">
+      {GROUP_ORDER.map((label) => {
+        const group = groupedEntries[label];
+        if (!group || group.length === 0) return null;
+        const isCollapsed = !!collapsed[label];
+        return (
+          <div key={label} className="space-y-3">
+            {/* Clickable group header */}
+            <button
+              onClick={() => toggleGroup(label)}
+              className="w-full flex items-center gap-3 group text-left"
+            >
+              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 group-hover:text-slate-400 transition-colors">
+                {label}
+              </h2>
+              <div className="flex-1 border-t border-white/5" />
+              <span className="text-xs text-slate-600 tabular-nums">
+                {group.length}
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-all duration-200 ${
+                  isCollapsed ? "-rotate-90" : "rotate-0"
+                }`}
+              />
+            </button>
+            {/* Entries in this group */}
+            {!isCollapsed && (
+              <div className="space-y-3">
+                {group.map((entry) => (
+                  <EntryCard
+                    key={entry.id}
+                    entry={entry}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function JournalPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -479,37 +543,11 @@ export default function JournalPage() {
 
       {/* Grouped entry list */}
       {totalFiltered > 0 && (
-        <div className="space-y-8">
-          {GROUP_ORDER.map((label) => {
-            const group = groupedEntries[label];
-            if (!group || group.length === 0) return null;
-            return (
-              <div key={label} className="space-y-3">
-                {/* Group header */}
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                    {label}
-                  </h2>
-                  <div className="flex-1 border-t border-white/5" />
-                  <span className="text-xs text-slate-600 tabular-nums">
-                    {group.length}
-                  </span>
-                </div>
-                {/* Entries in this group */}
-                <div className="space-y-3">
-                  {group.map((entry) => (
-                    <EntryCard
-                      key={entry.id}
-                      entry={entry}
-                      onEdit={openEdit}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <GroupedEntryList
+          groupedEntries={groupedEntries}
+          onEdit={openEdit}
+          onDelete={handleDelete}
+        />
       )}
 
       {/* Form dialog */}
