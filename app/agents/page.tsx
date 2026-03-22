@@ -97,8 +97,6 @@ function HierarchyNode({ agent, agents, depth = 0 }: { agent: Agent; agents: Age
     const h = getHierarchyInfo(a.id);
     return h?.reportsTo === agent.id.toLowerCase();
   });
-  // Unknown agents not in hierarchy at top level
-  const isLeaf = directReports.length === 0;
 
   return (
     <div className={cn("relative", depth > 0 && "ml-8 md:ml-12")}>
@@ -163,7 +161,7 @@ function HierarchyNode({ agent, agents, depth = 0 }: { agent: Agent; agents: Age
       {/* Direct reports */}
       {directReports.length > 0 && (
         <div className="mt-2 space-y-2 relative">
-          {/* Vertical connector */}
+          {/* Vertical connector line — spans from top to midpoint of last child */}
           <div className="absolute left-0 top-0 bottom-0 -translate-x-8 md:-translate-x-12 w-0.5 bg-slate-700" />
           {directReports.map((report) => (
             <HierarchyNode key={report.id} agent={report} agents={agents} depth={depth + 1} />
