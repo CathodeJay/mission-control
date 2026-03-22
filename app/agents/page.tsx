@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentStatus } from "@/lib/utils";
 import { AGENT_COLORS } from "@/lib/utils";
-import { Monitor, Coffee, Plus, Edit2 } from "lucide-react";
+import { Monitor, Coffee, Plus, Edit2, ChevronDown, Crown, Code2, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Agent = {
@@ -27,6 +27,172 @@ const STATUS_LABELS: Record<AgentStatus, string> = {
   awaiting_approval: "Awaiting Approval",
   error: "Error",
 };
+
+// Hoisted here so HierarchyNode can use it
+function StatusBadge({ status }: { status: AgentStatus }) {
+  const map: Record<AgentStatus, { variant: "default" | "success" | "warning" | "danger" | "info" | "outline"; label: string }> = {
+    idle: { variant: "default", label: "Idle" },
+    thinking: { variant: "info", label: "Thinking" },
+    working: { variant: "success", label: "Working" },
+    awaiting_approval: { variant: "warning", label: "Awaiting Approval" },
+    error: { variant: "danger", label: "Error" },
+  };
+  const { variant, label } = map[status] || { variant: "default", label: status };
+  return <Badge variant={variant}>{label}</Badge>;
+}
+
+// ── Team Hierarchy ────────────────────────────────────────────────────────────
+
+const KNOWN_HIERARCHY: Record<string, { rank: number; icon: React.ElementType; reportsTo: string | null; badge: string }> = {
+  jupiter: { rank: 0, icon: Crown, reportsTo: null, badge: "COO" },
+  mercury: { rank: 1, icon: Code2, reportsTo: "jupiter", badge: "Dev" },
+};
+
+function getHierarchyInfo(agentId: string) {
+  const lc = agentId.toLowerCase();
+  return KNOWN_HIERARCHY[lc] || null;
+}
+
+function HierarchyNode({ agent, agents, depth = 0 }: { agent: Agent; agents: Agent[]; depth?: number }) {
+  const hInfo = getHierarchyInfo(agent.id);
+  const Icon = hInfo?.icon || GitBranch;
+  const directReports = agents.filter((a) => {
+    const h = getHierarchyInfo(a.id);
+    return h?.reportsTo === agent.id.toLowerCase();
+  });
+  // Unknown agents not in hierarchy at top level
+  const isLeaf = directReports.length === 0;
+
+  return (
+    <div className={cn("relative", depth > 0 && "ml-8 md:ml-12")}>
+      {/* Connector line from parent */}
+      {depth > 0 && (
+        <div className="absolute -left-8 md:-left-12 top-5 w-8 md:w-12 flex items-center">
+          <div className="border-l-2 border-b-2 border-slate-700 rounded-bl-lg w-full h-5" />
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-xl border p-3 md:p-4 transition-all",
+          depth === 0
+            ? "border-violet-500/30 bg-violet-500/5 shadow-lg shadow-violet-500/5"
+            : "border-white/10 bg-white/3",
+        )}
+      >
+        {/* Role icon */}
+        <div
+          className={cn(
+            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+            depth === 0 ? "bg-violet-500/20" : "bg-slate-800",
+          )}
+        >
+          <Icon className={cn("w-4 h-4", depth === 0 ? "text-violet-400" : "text-slate-400")} />
+        </div>
+
+        <AgentAvatar
+          seed={agent.avatar_seed || agent.id}
+          name={agent.name}
+          status={agent.status}
+          color={agent.color}
+          size="sm"
+        />
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={cn("font-semibold text-sm", depth === 0 ? "text-violet-100" : "text-slate-200")}>
+              {agent.name}
+            </span>
+            {hInfo && (
+              <span
+                className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded font-mono uppercase tracking-wider",
+                  depth === 0 ? "bg-violet-500/20 text-violet-300" : "bg-slate-700 text-slate-400",
+                )}
+              >
+                {hInfo.badge}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 truncate">{agent.role}</p>
+        </div>
+
+        {/* Status */}
+        <div className="shrink-0">
+          <StatusBadge status={agent.status} />
+        </div>
+      </div>
+
+      {/* Direct reports */}
+      {directReports.length > 0 && (
+        <div className="mt-2 space-y-2 relative">
+          {/* Vertical connector */}
+          <div className="absolute left-0 top-0 bottom-0 -translate-x-8 md:-translate-x-12 w-0.5 bg-slate-700" />
+          {directReports.map((report) => (
+            <HierarchyNode key={report.id} agent={report} agents={agents} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamHierarchy({ agents }: { agents: Agent[] }) {
+  if (agents.length === 0) return null;
+
+  // Find agents that have no parent (top of hierarchy or unknown hierarchy)
+  const knownChildren = new Set(
+    agents
+      .map((a) => getHierarchyInfo(a.id)?.reportsTo)
+      .filter(Boolean) as string[]
+  );
+
+  const roots = agents.filter((a) => {
+    const h = getHierarchyInfo(a.id);
+    if (!h) {
+      // Unknown agent: treat as root if no known parent points to it
+      return !knownChildren.has(a.id.toLowerCase());
+    }
+    return h.reportsTo === null;
+  });
+
+  // Agents not reachable from roots (orphaned unknowns that are children of known nodes)
+  // will be picked up by the HierarchyNode recursive rendering
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#0d1117] overflow-hidden p-4 md:p-6 mb-6">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-5">
+        <GitBranch className="w-4 h-4 text-slate-500" />
+        <p className="text-xs text-slate-500 uppercase tracking-wider">Command Structure</p>
+        <div className="flex-1 border-t border-slate-800" />
+        <span className="text-xs text-slate-600">{agents.length} agent{agents.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      <div className="space-y-2">
+        {roots.map((root) => (
+          <HierarchyNode key={root.id} agent={root} agents={agents} depth={0} />
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-5 pt-4 border-t border-slate-800 flex items-center gap-4 text-[11px] text-slate-600 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <Crown className="w-3 h-3 text-violet-400" />
+          <span>Main session agent</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Code2 className="w-3 h-3 text-slate-500" />
+          <span>Coding subagent</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <ChevronDown className="w-3 h-3 text-slate-600" />
+          <span>Reports to</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Simple office scene
 function OfficeScene({ agents }: { agents: Agent[] }) {
@@ -277,6 +443,9 @@ export default function AgentsPage() {
         </Dialog>
       </div>
 
+      {/* Team hierarchy — command structure */}
+      <TeamHierarchy agents={agents} />
+
       {/* Office scene */}
       <OfficeScene agents={agents} />
 
@@ -340,16 +509,4 @@ export default function AgentsPage() {
       </Dialog>
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: AgentStatus }) {
-  const map: Record<AgentStatus, { variant: "default" | "success" | "warning" | "danger" | "info" | "outline"; label: string }> = {
-    idle: { variant: "default", label: "Idle" },
-    thinking: { variant: "info", label: "Thinking" },
-    working: { variant: "success", label: "Working" },
-    awaiting_approval: { variant: "warning", label: "Awaiting Approval" },
-    error: { variant: "danger", label: "Error" },
-  };
-  const { variant, label } = map[status] || { variant: "default", label: status };
-  return <Badge variant={variant}>{label}</Badge>;
 }
