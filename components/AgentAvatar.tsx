@@ -43,6 +43,7 @@ const sizes = {
 
 // Generate initials from name for fallback avatar
 function getInitials(name: string) {
+  if (!name) return "??";
   return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
@@ -55,7 +56,9 @@ function seedToHue(seed: string): number {
 
 export function AgentAvatar({ seed, name, status, color, size = "md", className }: AgentAvatarProps) {
   const sz = sizes[size];
-  const hue = color ? undefined : seedToHue(seed);
+  const safeSeed = seed || name || "agent";
+  const safeStatus: AgentStatus = (status && status in statusRing) ? status : "idle";
+  const hue = color ? undefined : seedToHue(safeSeed);
   const bg = color || `hsl(${hue}, 60%, 40%)`;
 
   return (
@@ -64,17 +67,17 @@ export function AgentAvatar({ seed, name, status, color, size = "md", className 
         className={cn(
           "rounded-full flex items-center justify-center font-bold ring overflow-hidden",
           sz.container, sz.ring, sz.text,
-          statusRing[status],
-          statusGlow[status],
-          statusPulse[status] && "animate-pulse"
+          statusRing[safeStatus],
+          statusGlow[safeStatus],
+          statusPulse[safeStatus] && "animate-pulse"
         )}
         style={{ background: bg }}
-        title={`${name} — ${status}`}
+        title={`${name || "Agent"} — ${safeStatus}`}
       >
         <span className="text-white select-none">{getInitials(name)}</span>
       </div>
       {/* Status dot */}
-      <StatusDot status={status} />
+      <StatusDot status={safeStatus} />
     </div>
   );
 }
