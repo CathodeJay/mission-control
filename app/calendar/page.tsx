@@ -2,16 +2,18 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   Calendar, Clock, Play, ToggleLeft, ToggleRight,
-  AlertCircle, CheckCircle, Loader2, RefreshCw, Zap
+  AlertCircle, CheckCircle, Loader2, RefreshCw, Zap, CalendarClock
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { CronJob, CalendarResponse, CalendarStatus } from "@/app/api/calendar/route";
 
 const REFRESH_INTERVAL = 30_000;
 
-function StatusBadge({ status }: { status: string | null }) {
-  if (!status) return <Badge variant="default">Idle</Badge>;
+function StatusBadge({ status, enabled }: { status: string | null; enabled?: boolean }) {
+  // Enabled jobs should never show "disabled" via status badge — that's a stale artifact.
+  // The enabled/disabled state is conveyed by which section the job appears in.
+  if (!status || (enabled && status === "disabled")) return null;
   if (status === "ok") return (
     <Badge variant="success">
       <CheckCircle className="w-3 h-3 mr-1" /> OK
@@ -123,7 +125,12 @@ function JobCard({
                 </div>
               )}
               {job.lastStatus && (
-                <StatusBadge status={job.lastStatus} />
+                <StatusBadge status={job.lastStatus} enabled={job.enabled} />
+              )}
+              {job.enabled && !job.lastStatus && !job.lastRunRelative && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-900/30 text-emerald-400 flex items-center gap-1">
+                  <CalendarClock className="w-3 h-3" /> Scheduled
+                </span>
               )}
               {job.consecutiveErrors > 1 && (
                 <span className="text-xs text-red-400 font-mono">{job.consecutiveErrors}× errors</span>

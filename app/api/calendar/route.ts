@@ -87,19 +87,27 @@ function formatRelative(ms: number | null | undefined): string | null {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapJob(job: any): CronJob {
   const state = job.state ?? {};
+  const enabled = job.enabled === true;
+
+  // Normalize lastStatus: prefer state.lastStatus, fall back to state.lastRunStatus.
+  // If the job is currently enabled, never surface "disabled" as lastStatus —
+  // that would be a stale artifact from a previous disable/enable cycle.
+  const rawStatus = state.lastStatus ?? state.lastRunStatus ?? null;
+  const lastStatus = enabled && rawStatus === "disabled" ? null : rawStatus;
+
   return {
     id: job.id,
     name: job.name ?? job.id,
     agentId: job.agentId ?? null,
     sessionKey: job.sessionKey ?? null,
-    enabled: job.enabled ?? false,
+    enabled,
     schedule: job.schedule ?? { kind: "at" },
     scheduleHuman: formatScheduleHuman(job.schedule ?? {}),
     nextRunAtMs: state.nextRunAtMs ?? null,
     nextRunRelative: formatRelative(state.nextRunAtMs),
     lastRunAtMs: state.lastRunAtMs ?? null,
     lastRunRelative: formatRelative(state.lastRunAtMs),
-    lastStatus: state.lastStatus ?? state.lastRunStatus ?? null,
+    lastStatus,
     lastError: state.lastError ?? null,
     consecutiveErrors: state.consecutiveErrors ?? 0,
     payload: job.payload ?? null,
@@ -113,15 +121,19 @@ function mapJob(job: any): CronJob {
 async function fetchViaCliSubprocess(): Promise<CalendarResponse> {
   try {
     const [listOut, statusOut] = await Promise.allSettled([
-      execAsync("openclaw cron list --json --all", { timeout: 10000 }),
-      execAsync("openclaw cron status --json", { timeout: 10000 }),
+      execAsync("openclaw cron list --json --all", { timeout: 15000 }),
+      execAsync("openclaw cron status --json", { timeout: 15000 }),
     ]);
 
     let jobs: CronJob[] = [];
+    let listError: string | undefined;
     if (listOut.status === "fulfilled") {
       const parsed = JSON.parse(listOut.value.stdout);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       jobs = (parsed.jobs ?? []).map((j: any) => mapJob(j));
+    } else {
+      const reason = listOut.reason;
+      listError = reason instanceof Error ? reason.message : String(reason);
     }
 
     let status: CalendarStatus | null = null;
@@ -143,7 +155,7 @@ async function fetchViaCliSubprocess(): Promise<CalendarResponse> {
       return an - bn;
     });
 
-    return { jobs, status };
+    return { jobs, status, ...(listError ? { error: listError } : {}) };
   } catch (err) {
     return {
       jobs: [],
