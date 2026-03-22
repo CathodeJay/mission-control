@@ -98,31 +98,86 @@ function HierarchyNode({ agent, agents, depth = 0 }: { agent: Agent; agents: Age
     return h?.reportsTo === agent.id.toLowerCase();
   });
 
+  const isActive = agent.status !== "idle";
+  const isWorking = agent.status === "working";
+  const isThinking = agent.status === "thinking";
+  const hasActiveReport = directReports.some((r) => r.status !== "idle");
+
+  // Find parent agent for the "working under X" label
+  const parentAgentId = hInfo?.reportsTo;
+  const parentAgent = parentAgentId ? agents.find((a) => a.id.toLowerCase() === parentAgentId) : null;
+
   return (
     <div className={cn("relative", depth > 0 && "ml-8 md:ml-12")}>
       {/* Connector line from parent */}
       {depth > 0 && (
         <div className="absolute -left-8 md:-left-12 top-5 w-8 md:w-12 flex items-center">
-          <div className="border-l-2 border-b-2 border-slate-700 rounded-bl-lg w-full h-5" />
+          {/* Animated connector when subagent is active */}
+          {isActive ? (
+            <div className="relative w-full h-5">
+              {/* Base line */}
+              <div
+                className={cn(
+                  "absolute inset-0 border-l-2 border-b-2 rounded-bl-lg w-full h-full transition-colors duration-500",
+                  isWorking ? "border-emerald-500/70" : isThinking ? "border-blue-500/70" : "border-amber-500/70",
+                )}
+              />
+              {/* Animated pulse overlay */}
+              <div
+                className={cn(
+                  "absolute inset-0 border-l-2 border-b-2 rounded-bl-lg w-full h-full animate-pulse",
+                  isWorking ? "border-emerald-400/50" : isThinking ? "border-blue-400/50" : "border-amber-400/50",
+                )}
+              />
+            </div>
+          ) : (
+            <div className="border-l-2 border-b-2 border-slate-700 rounded-bl-lg w-full h-5" />
+          )}
         </div>
       )}
 
       <div
         className={cn(
-          "flex items-center gap-3 rounded-xl border p-3 md:p-4 transition-all",
+          "flex items-center gap-3 rounded-xl border p-3 md:p-4 transition-all duration-300",
           depth === 0
-            ? "border-violet-500/30 bg-violet-500/5 shadow-lg shadow-violet-500/5"
-            : "border-white/10 bg-white/3",
+            ? cn(
+                "border-violet-500/30 bg-violet-500/5 shadow-lg shadow-violet-500/5",
+                hasActiveReport && "border-violet-400/50 bg-violet-500/10 shadow-violet-500/10",
+              )
+            : cn(
+                "border-white/10 bg-white/3",
+                isWorking && "border-emerald-500/40 bg-emerald-500/5 shadow-md shadow-emerald-500/10",
+                isThinking && "border-blue-500/40 bg-blue-500/5 shadow-md shadow-blue-500/10",
+                agent.status === "awaiting_approval" && "border-amber-500/40 bg-amber-500/5 shadow-md shadow-amber-500/10",
+                agent.status === "error" && "border-red-500/40 bg-red-500/5",
+              ),
         )}
       >
         {/* Role icon */}
         <div
           className={cn(
-            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-            depth === 0 ? "bg-violet-500/20" : "bg-slate-800",
+            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300",
+            depth === 0
+              ? cn("bg-violet-500/20", hasActiveReport && "bg-violet-500/30")
+              : cn(
+                  "bg-slate-800",
+                  isWorking && "bg-emerald-500/20",
+                  isThinking && "bg-blue-500/20",
+                ),
           )}
         >
-          <Icon className={cn("w-4 h-4", depth === 0 ? "text-violet-400" : "text-slate-400")} />
+          <Icon
+            className={cn(
+              "w-4 h-4 transition-colors duration-300",
+              depth === 0
+                ? cn("text-violet-400", hasActiveReport && "text-violet-300")
+                : cn(
+                    "text-slate-400",
+                    isWorking && "text-emerald-400",
+                    isThinking && "text-blue-400",
+                  ),
+            )}
+          />
         </div>
 
         <AgentAvatar
@@ -135,21 +190,57 @@ function HierarchyNode({ agent, agents, depth = 0 }: { agent: Agent; agents: Age
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={cn("font-semibold text-sm", depth === 0 ? "text-violet-100" : "text-slate-200")}>
+            <span className={cn(
+              "font-semibold text-sm transition-colors duration-300",
+              depth === 0
+                ? cn("text-violet-100", hasActiveReport && "text-violet-50")
+                : cn(
+                    "text-slate-200",
+                    isWorking && "text-emerald-100",
+                    isThinking && "text-blue-100",
+                  ),
+            )}>
               {agent.name}
             </span>
             {hInfo && (
               <span
                 className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded font-mono uppercase tracking-wider",
-                  depth === 0 ? "bg-violet-500/20 text-violet-300" : "bg-slate-700 text-slate-400",
+                  "text-[10px] px-1.5 py-0.5 rounded font-mono uppercase tracking-wider transition-all duration-300",
+                  depth === 0
+                    ? "bg-violet-500/20 text-violet-300"
+                    : cn(
+                        "bg-slate-700 text-slate-400",
+                        isWorking && "bg-emerald-500/20 text-emerald-400",
+                        isThinking && "bg-blue-500/20 text-blue-400",
+                      ),
                 )}
               >
                 {hInfo.badge}
               </span>
             )}
+            {/* "Working under X" dynamic label */}
+            {depth > 0 && isActive && parentAgent && (
+              <span className={cn(
+                "text-[9px] px-1.5 py-0.5 rounded-full font-medium tracking-wide flex items-center gap-0.5 transition-all duration-300",
+                isWorking ? "bg-emerald-900/50 text-emerald-400 border border-emerald-500/30"
+                  : isThinking ? "bg-blue-900/50 text-blue-400 border border-blue-500/30"
+                  : "bg-amber-900/50 text-amber-400 border border-amber-500/30",
+              )}>
+                <span className="inline-block w-1 h-1 rounded-full bg-current animate-pulse mr-0.5" />
+                under {parentAgent.name}
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 truncate">{agent.role}</p>
+          {/* Current task preview in hierarchy */}
+          {depth > 0 && isActive && agent.current_task && (
+            <p className={cn(
+              "text-[10px] mt-0.5 truncate font-mono",
+              isWorking ? "text-emerald-500/80" : isThinking ? "text-blue-500/80" : "text-amber-500/80",
+            )}>
+              ↳ {agent.current_task}
+            </p>
+          )}
         </div>
 
         {/* Status */}
@@ -161,8 +252,28 @@ function HierarchyNode({ agent, agents, depth = 0 }: { agent: Agent; agents: Age
       {/* Direct reports */}
       {directReports.length > 0 && (
         <div className="mt-2 space-y-2 relative">
-          {/* Vertical connector line — spans from top to midpoint of last child */}
-          <div className="absolute left-0 top-0 bottom-0 -translate-x-8 md:-translate-x-12 w-0.5 bg-slate-700" />
+          {/* Vertical connector line — animates when any child is active */}
+          <div
+            className={cn(
+              "absolute left-0 top-0 bottom-0 -translate-x-8 md:-translate-x-12 w-0.5 transition-colors duration-500",
+              hasActiveReport ? "bg-gradient-to-b from-violet-500/50 to-transparent" : "bg-slate-700",
+            )}
+          />
+          {/* Animated flow dot when reports are active */}
+          {hasActiveReport && (
+            <div
+              className="absolute left-0 -translate-x-8 md:-translate-x-12 w-0.5 overflow-hidden"
+              style={{ top: 0, height: "100%" }}
+            >
+              <div
+                className="w-full bg-violet-400 rounded-full"
+                style={{
+                  height: "20%",
+                  animation: "slideDown 1.5s ease-in-out infinite",
+                }}
+              />
+            </div>
+          )}
           {directReports.map((report) => (
             <HierarchyNode key={report.id} agent={report} agents={agents} depth={depth + 1} />
           ))}
@@ -227,6 +338,10 @@ function TeamHierarchy({ agents }: { agents: Agent[] }) {
         <div className="flex items-center gap-1.5">
           <ChevronDown className="w-3 h-3 text-slate-600" />
           <span>Reports to</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Actively working under parent</span>
         </div>
       </div>
     </div>
