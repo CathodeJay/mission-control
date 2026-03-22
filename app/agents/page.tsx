@@ -422,28 +422,62 @@ export default function AgentsPage() {
 
   useEffect(() => {
     fetchAgents();
-    // Live status updates
-    const es = new EventSource("/api/gateway/events");
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        // Real-time agent status update from Gateway turn events
-        if (data.type === "agent.status") {
-          setAgents((prev) =>
-            prev.map((a) =>
-              a.id === data.agentId
-                ? { ...a, status: data.status, current_task: data.task || null, updated_at: Math.floor(Date.now() / 1000) }
-                : a
-            )
-          );
+
+    // ── SSE connection with reconnect logic ───────────────────────────────────
+    let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectDelay = 500; // start at 500ms, back off up to 10s
+    let destroyed = false;
+
+    function connect() {
+      if (destroyed) return;
+      es = new EventSource("/api/gateway/events");
+
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          // Real-time agent status update from Gateway turn events
+          if (data.type === "agent.status") {
+            setAgents((prev) =>
+              prev.map((a) =>
+                a.id === data.agentId
+                  ? { ...a, status: data.status, current_task: data.task || null, updated_at: Math.floor(Date.now() / 1000) }
+                  : a
+              )
+            );
+          }
+          // Reset backoff on any successful message
+          reconnectDelay = 500;
+        } catch {}
+      };
+
+      es.onerror = () => {
+        // Stream dropped — close and schedule reconnect with exponential backoff
+        es?.close();
+        es = null;
+        if (!destroyed) {
+          reconnectTimer = setTimeout(() => {
+            reconnectDelay = Math.min(reconnectDelay * 2, 10_000);
+            connect();
+          }, reconnectDelay);
         }
-      } catch {}
+      };
+    }
+
+    connect();
+
+    // Fallback: re-fetch agents every 4s to catch any missed events
+    const interval = setInterval(fetchAgents, 4000);
+    // Tick every 10s to refresh relative timestamps ("Xs ago")
+    const tickInterval = setInterval(() => setTick((t) => t + 1), 10_000);
+
+    return () => {
+      destroyed = true;
+      es?.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      clearInterval(interval);
+      clearInterval(tickInterval);
     };
-    // Fallback: re-fetch agents every 15s to catch any missed events
-    const interval = setInterval(fetchAgents, 15000);
-    // Tick every 30s to refresh relative timestamps
-    const tickInterval = setInterval(() => setTick((t) => t + 1), 30_000);
-    return () => { es.close(); clearInterval(interval); clearInterval(tickInterval); };
   }, [fetchAgents]);
 
   const createAgent = async (data: Partial<Agent>) => {
