@@ -290,7 +290,7 @@ function AgentStatusBadge({ status }: { status: AgentStatus }) {
   const map: Record<AgentStatus, { label: string; variant: "default" | "success" | "warning" | "danger" | "info" | "outline" }> = {
     idle: { label: "Idle", variant: "default" },
     thinking: { label: "Thinking", variant: "info" },
-    executing: { label: "Executing", variant: "success" },
+    working: { label: "Working", variant: "success" },
     awaiting_approval: { label: "Waiting", variant: "warning" },
     error: { label: "Error", variant: "danger" },
   };

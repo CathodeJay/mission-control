@@ -29,7 +29,7 @@ export const AGENT_COLORS = [
   "#84cc16", // lime
 ];
 
-export type AgentStatus = "idle" | "thinking" | "executing" | "awaiting_approval" | "error";
+export type AgentStatus = "idle" | "thinking" | "working" | "awaiting_approval" | "error";
 export type CardColumn = "awaiting_approval" | "backlog" | "todo" | "in_progress" | "done";
 export type CardPriority = "low" | "medium" | "high" | "critical";
 export type ProjectStatus = "active" | "paused" | "done" | "concept" | "in-development";

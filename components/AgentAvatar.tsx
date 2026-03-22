@@ -14,7 +14,7 @@ interface AgentAvatarProps {
 const statusRing: Record<AgentStatus, string> = {
   idle: "ring-slate-600",
   thinking: "ring-violet-500",
-  executing: "ring-emerald-500",
+  working: "ring-emerald-500",
   awaiting_approval: "ring-amber-500",
   error: "ring-red-500",
 };
@@ -22,7 +22,7 @@ const statusRing: Record<AgentStatus, string> = {
 const statusPulse: Record<AgentStatus, boolean> = {
   idle: false,
   thinking: true,
-  executing: true,
+  working: true,
   awaiting_approval: true,
   error: false,
 };
@@ -30,7 +30,7 @@ const statusPulse: Record<AgentStatus, boolean> = {
 const statusGlow: Record<AgentStatus, string> = {
   idle: "",
   thinking: "shadow-[0_0_12px_rgba(139,92,246,0.4)]",
-  executing: "shadow-[0_0_12px_rgba(16,185,129,0.4)]",
+  working: "shadow-[0_0_12px_rgba(16,185,129,0.4)]",
   awaiting_approval: "shadow-[0_0_12px_rgba(245,158,11,0.5)]",
   error: "shadow-[0_0_12px_rgba(239,68,68,0.4)]",
 };
@@ -86,7 +86,7 @@ function StatusDot({ status }: { status: AgentStatus }) {
   const colors: Record<AgentStatus, string> = {
     idle: "bg-slate-500",
     thinking: "bg-violet-400",
-    executing: "bg-emerald-400",
+    working: "bg-emerald-400",
     awaiting_approval: "bg-amber-400",
     error: "bg-red-400",
   };

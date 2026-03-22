@@ -23,7 +23,7 @@ type Agent = {
 const STATUS_LABELS: Record<AgentStatus, string> = {
   idle: "Idle",
   thinking: "Thinking...",
-  executing: "Executing tool",
+  working: "Working...",
   awaiting_approval: "Awaiting Approval",
   error: "Error",
 };
@@ -106,7 +106,7 @@ function WorkStation({ agent }: { agent: Agent }) {
               ))}
             </div>
           )}
-          {agent.status === "executing" && (
+          {agent.status === "working" && (
             <div className="w-6 h-1 rounded-full bg-emerald-400 animate-pulse" />
           )}
           {agent.status === "awaiting_approval" && (
@@ -337,7 +337,7 @@ function StatusBadge({ status }: { status: AgentStatus }) {
   const map: Record<AgentStatus, { variant: "default" | "success" | "warning" | "danger" | "info" | "outline"; label: string }> = {
     idle: { variant: "default", label: "Idle" },
     thinking: { variant: "info", label: "Thinking" },
-    executing: { variant: "success", label: "Executing" },
+    working: { variant: "success", label: "Working" },
     awaiting_approval: { variant: "warning", label: "Awaiting Approval" },
     error: { variant: "danger", label: "Error" },
   };

@@ -12,7 +12,7 @@ export async function POST(
   const body = await req.json();
   const { status, current_task } = body;
 
-  const valid = ["idle", "thinking", "executing", "awaiting_approval", "error"];
+  const valid = ["idle", "thinking", "working", "awaiting_approval", "error"];
   if (!valid.includes(status)) {
     return NextResponse.json({ error: "invalid status" }, { status: 400 });
   }
