@@ -3,6 +3,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
+const OPENCLAW_BIN = "/opt/homebrew/bin/openclaw";
 
 export type CronJob = {
   id: string;
@@ -89,9 +90,6 @@ function mapJob(job: any): CronJob {
   const state = job.state ?? {};
   const enabled = job.enabled === true;
 
-  // Normalize lastStatus: prefer state.lastStatus, fall back to state.lastRunStatus.
-  // If the job is currently enabled, never surface "disabled" as lastStatus —
-  // that would be a stale artifact from a previous disable/enable cycle.
   const rawStatus = state.lastStatus ?? state.lastRunStatus ?? null;
   const lastStatus = enabled && rawStatus === "disabled" ? null : rawStatus;
 
@@ -121,8 +119,8 @@ function mapJob(job: any): CronJob {
 async function fetchViaCliSubprocess(): Promise<CalendarResponse> {
   try {
     const [listOut, statusOut] = await Promise.allSettled([
-      execAsync("openclaw cron list --json --all", { timeout: 15000 }),
-      execAsync("openclaw cron status --json", { timeout: 15000 }),
+      execAsync(`${OPENCLAW_BIN} cron list --json --all`, { timeout: 15000 }),
+      execAsync(`${OPENCLAW_BIN} cron status --json`, { timeout: 15000 }),
     ]);
 
     let jobs: CronJob[] = [];
@@ -180,17 +178,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     if (action === "run") {
-      await execAsync(`openclaw cron run ${jobId}`, { timeout: 10000 });
+      await execAsync(`${OPENCLAW_BIN} cron run ${jobId}`, { timeout: 10000 });
       return NextResponse.json({ ok: true });
     }
 
     if (action === "enable") {
-      await execAsync(`openclaw cron enable ${jobId}`, { timeout: 10000 });
+      await execAsync(`${OPENCLAW_BIN} cron enable ${jobId}`, { timeout: 10000 });
       return NextResponse.json({ ok: true });
     }
 
     if (action === "disable") {
-      await execAsync(`openclaw cron disable ${jobId}`, { timeout: 10000 });
+      await execAsync(`${OPENCLAW_BIN} cron disable ${jobId}`, { timeout: 10000 });
       return NextResponse.json({ ok: true });
     }
 
