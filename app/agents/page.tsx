@@ -212,7 +212,7 @@ export default function AgentsPage() {
 
   const fetchAgents = useCallback(async () => {
     const a = await fetch("/api/agents").then((r) => r.json());
-    setAgents(a);
+    setAgents(Array.isArray(a) ? a : (a.agents ?? []));
   }, []);
 
   useEffect(() => {
