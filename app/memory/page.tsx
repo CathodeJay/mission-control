@@ -255,7 +255,7 @@ function TimelineEntry({
   const imp = IMPORTANCE_CONFIG[memory.importance] ?? IMPORTANCE_CONFIG.normal;
 
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-3 min-w-0">
       {/* Timeline spine */}
       <div className="flex flex-col items-center flex-shrink-0">
         <div className={cn("w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ring-2 ring-[#0f1219]", imp.dot)} />
@@ -264,13 +264,13 @@ function TimelineEntry({
 
       {/* Card */}
       <div className={cn(
-        "flex-1 rounded-xl bg-[#161b27] border border-white/10 p-4 mb-4 hover:border-white/20 transition-all",
+        "flex-1 min-w-0 rounded-xl bg-[#161b27] border border-white/10 p-4 mb-4 hover:border-white/20 transition-all",
         imp.ring,
       )}>
         {/* Timestamp */}
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 min-w-0">
           <CalendarDays className="w-3 h-3 text-slate-500 flex-shrink-0" />
-          <span className="text-[11px] text-slate-500 font-mono">{absoluteDate(memory.created_at)}</span>
+          <span className="text-[11px] text-slate-500 font-mono truncate">{absoluteDate(memory.created_at)}</span>
         </div>
 
         {/* Header row */}
@@ -570,9 +570,9 @@ export default function MemoryPage() {
   const highCount = memories.filter((m) => m.importance === "high").length;
 
   return (
-    <div className="min-h-screen bg-[#0f1219] text-white px-4 py-6 md:px-8">
+    <div className="min-h-screen bg-[#0f1219] text-white px-4 py-6 md:px-8 overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-2">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 flex items-center justify-center">
             <Brain className="w-5 h-5 text-violet-400" />
@@ -637,86 +637,89 @@ export default function MemoryPage() {
       </div>
 
       {/* Filter + Controls bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* Agent filter */}
-        <select
-          value={filterAgent}
-          onChange={(e) => setFilterAgent(e.target.value)}
-          className="bg-[#161b27] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-violet-500/50"
-        >
-          <option value="">All agents</option>
-          {agents.map((a) => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-2 mb-4">
+        {/* Row 1: agent filter + importance chips + active tag */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Agent filter */}
+          <select
+            value={filterAgent}
+            onChange={(e) => setFilterAgent(e.target.value)}
+            className="bg-[#161b27] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-violet-500/50 max-w-full"
+          >
+            <option value="">All agents</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
 
-        {/* Importance chips */}
-        <div className="flex items-center gap-1 flex-wrap">
-          {importanceLevels.map((lvl) => (
+          {/* Importance chips */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {importanceLevels.map((lvl) => (
+              <button
+                key={lvl}
+                onClick={() => setFilterImportance(lvl)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors capitalize",
+                  filterImportance === lvl
+                    ? "bg-violet-600 text-white"
+                    : "bg-[#161b27] border border-white/10 text-slate-400 hover:text-white"
+                )}
+              >
+                {lvl === "all" ? "All" : IMPORTANCE_CONFIG[lvl].label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tag filter active */}
+          {filterTag && (
             <button
-              key={lvl}
-              onClick={() => setFilterImportance(lvl)}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors capitalize",
-                filterImportance === lvl
-                  ? "bg-violet-600 text-white"
-                  : "bg-[#161b27] border border-white/10 text-slate-400 hover:text-white"
-              )}
+              onClick={() => setFilterTag("")}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-violet-600/20 text-violet-400 border border-violet-500/30 hover:bg-violet-600/30"
             >
-              {lvl === "all" ? "All" : IMPORTANCE_CONFIG[lvl].label}
+              <Tag className="w-3 h-3" />
+              <span className="truncate max-w-[100px]">{filterTag}</span>
+              <X className="w-3 h-3 flex-shrink-0" />
             </button>
-          ))}
+          )}
         </div>
 
-        {/* Tag filter active */}
-        {filterTag && (
+        {/* Row 2: Sort + View toggles */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Sort toggle */}
           <button
-            onClick={() => setFilterTag("")}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-violet-600/20 text-violet-400 border border-violet-500/30 hover:bg-violet-600/30"
+            onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-[#161b27] border border-white/10 text-slate-400 hover:text-white transition-colors"
           >
-            <Tag className="w-3 h-3" />
-            {filterTag}
-            <X className="w-3 h-3" />
-          </button>
-        )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Sort toggle */}
-        <button
-          onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-[#161b27] border border-white/10 text-slate-400 hover:text-white transition-colors"
-        >
-          {sortOrder === "newest" ? (
-            <><SortDesc className="w-3.5 h-3.5" /> Newest first</>
-          ) : (
-            <><SortAsc className="w-3.5 h-3.5" /> Oldest first</>
-          )}
-        </button>
-
-        {/* View toggle */}
-        <div className="flex items-center rounded-lg bg-[#161b27] border border-white/10 overflow-hidden">
-          <button
-            onClick={() => setViewMode("timeline")}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors",
-              viewMode === "timeline" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
+            {sortOrder === "newest" ? (
+              <><SortDesc className="w-3.5 h-3.5" /> Newest first</>
+            ) : (
+              <><SortAsc className="w-3.5 h-3.5" /> Oldest first</>
             )}
-          >
-            <AlignLeft className="w-3.5 h-3.5" />
-            Timeline
           </button>
-          <button
-            onClick={() => setViewMode("grid")}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors",
-              viewMode === "grid" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
-            )}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            Grid
-          </button>
+
+          {/* View toggle */}
+          <div className="flex items-center rounded-lg bg-[#161b27] border border-white/10 overflow-hidden">
+            <button
+              onClick={() => setViewMode("timeline")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors",
+                viewMode === "timeline" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
+              )}
+            >
+              <AlignLeft className="w-3.5 h-3.5" />
+              Timeline
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors",
+                viewMode === "grid" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
+              )}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Grid
+            </button>
+          </div>
         </div>
       </div>
 
@@ -767,16 +770,16 @@ export default function MemoryPage() {
           {timelineGroups.map((group) => (
             <div key={group.bucket} className="mb-6">
               {/* Date bucket header */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#1a2035] border border-white/10 text-xs text-slate-400">
+              <div className="flex items-center gap-3 mb-3 min-w-0">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#1a2035] border border-white/10 text-xs text-slate-400 flex-shrink-0">
                   <Clock className="w-3 h-3" />
                   {group.bucket}
                   <span className="text-slate-600">· {group.items.length}</span>
                 </div>
-                <div className="flex-1 h-px bg-white/5" />
+                <div className="flex-1 h-px bg-white/5 min-w-0" />
               </div>
               {/* Timeline entries */}
-              <div className="ml-2">
+              <div className="ml-1">
                 {group.items.map((m, idx) => (
                   <TimelineEntry
                     key={m.id}
