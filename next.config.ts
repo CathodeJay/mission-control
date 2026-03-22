@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   },
   // Allow Tailscale host for dev hot reload
   allowedDevOrigins: ["solar-clawd.tail3445ba.ts.net"],
+  // Hide Next.js dev indicator
+  devIndicators: false,
 };
 
 export default nextConfig;
