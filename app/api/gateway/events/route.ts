@@ -26,6 +26,12 @@ export async function GET() {
       // Send initial connected state
       send({ type: "connected", connected: gateway.isConnected() });
 
+      // Sync agent models from OpenClaw config on connect
+      gateway.once("connected", () => {
+        fetch("http://localhost:" + (process.env.MISSION_CONTROL_PORT || "3200") + "/api/agents/sync-models", { method: "POST" })
+          .catch(() => {}); // best-effort
+      });
+
       // Handle gateway events
       function onEvent(event: { type: string; [key: string]: unknown }) {
         send(event);
@@ -127,7 +133,6 @@ export async function GET() {
 
               const current = db.prepare("SELECT status, current_task FROM agents WHERE id = ?").get(agentId) as { status: string, current_task: string | null } | undefined;
               
-              // Update DB and broadcast if status or task has changed
               if (current && (current.status !== newStatus || current.current_task !== newTask)) {
                 db.prepare("UPDATE agents SET status = ?, current_task = ?, last_seen = unixepoch(), updated_at = unixepoch() WHERE id = ?")
                   .run(newStatus, newTask, agentId);

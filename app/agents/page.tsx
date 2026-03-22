@@ -181,10 +181,7 @@ function AgentForm({
         <label className="text-xs text-slate-400">Bio</label>
         <Textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={2} />
       </div>
-      <div className="space-y-1">
-        <label className="text-xs text-slate-400">Model</label>
-        <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="e.g. claude-sonnet-4-6" />
-      </div>
+
       <div className="space-y-1">
         <label className="text-xs text-slate-400">Color</label>
         <div className="flex gap-2 flex-wrap">
