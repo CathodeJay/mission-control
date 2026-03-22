@@ -75,16 +75,40 @@ export async function GET() {
             const sessions: Array<{ key: string; updatedAt: number; age: number }> =
               Array.isArray(payload.sessions?.recent) ? payload.sessions.recent : [];
 
-            // Map session keys → agent IDs
-            const sessionAgentMap: Record<string, string> = {
-              "agent:main:main": "jupiter",
-            };
+            // Dynamically resolve session keys → agent IDs from DB
+            // agent:main:main → jupiter (main session)
+            // agent:main:subagent:* → look up which subagent is currently active
+            // Future agents: any agent with a matching session_id in DB
+            const allAgents = db.prepare("SELECT id, session_id FROM agents").all() as { id: string; session_id: string | null }[];
+            const sessionIdMap: Record<string, string> = {};
+            for (const a of allAgents) {
+              if (a.session_id) sessionIdMap[a.session_id] = a.id;
+            }
+
+            // Track which subagent session is most recently active
+            let latestSubagentKey: string | null = null;
+            let latestSubagentAge = Infinity;
+            for (const session of sessions) {
+              if (session?.key?.startsWith("agent:main:subagent:") && session.age < latestSubagentAge) {
+                latestSubagentAge = session.age;
+                latestSubagentKey = session.key;
+              }
+            }
 
             for (const session of sessions) {
               // Ensure session object is valid before accessing properties
               if (!session || typeof session.key !== 'string') continue;
 
-              const agentId = sessionAgentMap[session.key] || (session.key.startsWith("agent:main:subagent:") ? "mercury" : null);
+              // Resolve agent ID: main session = jupiter, subagent = mercury (most recent), others by session_id
+              let agentId: string | null = null;
+              if (session.key === "agent:main:main") {
+                agentId = "jupiter";
+              } else if (session.key.startsWith("agent:main:subagent:") && session.key === latestSubagentKey) {
+                // Map most recently active subagent to mercury
+                agentId = sessionIdMap[session.key] || "mercury";
+              } else if (sessionIdMap[session.key]) {
+                agentId = sessionIdMap[session.key];
+              }
               if (!agentId) continue;
 
               // Agent is active if its session was updated recently (e.g., less than 15 seconds ago)
