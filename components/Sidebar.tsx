@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Users, KanbanSquare, FolderKanban,
-  BookOpen, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain
+  BookOpen, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ const NAV = [
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/calendar", icon: CalendarClock, label: "Calendar" },
   { href: "/memory", icon: Brain, label: "Memory" },
+  { href: "/documents", icon: FileText, label: "Documents" },
 ];
 
 export function Sidebar() {
@@ -75,7 +76,7 @@ export function Sidebar() {
       </aside>
 
       {/* ── Mobile bottom nav ────────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0d1117] border-t border-white/10 flex items-center justify-around px-1 pb-safe">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0d1117] border-t border-white/10 flex items-center justify-around px-0.5 pb-safe">
         {NAV.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           return (
@@ -83,14 +84,14 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl min-w-[44px] min-h-[52px] justify-center transition-colors",
+                "flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg flex-1 justify-center transition-colors",
                 active
                   ? "text-violet-400"
                   : "text-slate-500 active:text-slate-300"
               )}
             >
-              <Icon className={cn("w-5 h-5", active && "drop-shadow-[0_0_6px_rgba(139,92,246,0.8)]")} />
-              <span className="text-[10px] leading-tight">{label}</span>
+              <Icon className={cn("w-4 h-4", active && "drop-shadow-[0_0_6px_rgba(139,92,246,0.8)]")} />
+              <span className="text-[8px] leading-tight truncate max-w-full">{label}</span>
             </Link>
           );
         })}
