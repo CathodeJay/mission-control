@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Brain, Plus, Search, Trash2, Pencil, X, ChevronDown, ChevronUp, Tag,
-  ArrowUpDown, LayoutGrid, AlignJustify
+  Clock, SortDesc, SortAsc, CalendarDays, LayoutGrid, AlignLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Importance = "low" | "normal" | "high" | "critical";
+type SortOrder = "newest" | "oldest";
+type ViewMode = "grid" | "timeline";
 
 interface Memory {
   id: string;
@@ -28,11 +30,35 @@ interface Agent {
   color: string;
 }
 
-const IMPORTANCE_CONFIG: Record<Importance, { label: string; badge: string; border: string }> = {
-  critical: { label: "Critical", badge: "bg-red-500/20 text-red-400 border border-red-500/30", border: "border-l-4 border-l-red-500" },
-  high:     { label: "High",     badge: "bg-amber-500/20 text-amber-400 border border-amber-500/30", border: "border-l-4 border-l-amber-500" },
-  normal:   { label: "Normal",   badge: "bg-blue-500/20 text-blue-400 border border-blue-500/30", border: "" },
-  low:      { label: "Low",      badge: "bg-slate-500/20 text-slate-400 border border-slate-500/30", border: "" },
+const IMPORTANCE_CONFIG: Record<Importance, { label: string; badge: string; border: string; dot: string; ring: string }> = {
+  critical: {
+    label: "Critical",
+    badge: "bg-red-500/20 text-red-400 border border-red-500/40",
+    border: "border-l-4 border-l-red-500",
+    dot: "bg-red-500",
+    ring: "ring-1 ring-red-500/30",
+  },
+  high: {
+    label: "High",
+    badge: "bg-amber-500/20 text-amber-400 border border-amber-500/40",
+    border: "border-l-4 border-l-amber-500",
+    dot: "bg-amber-500",
+    ring: "ring-1 ring-amber-500/30",
+  },
+  normal: {
+    label: "Normal",
+    badge: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
+    border: "",
+    dot: "bg-blue-500",
+    ring: "",
+  },
+  low: {
+    label: "Low",
+    badge: "bg-slate-500/20 text-slate-400 border border-slate-500/30",
+    border: "",
+    dot: "bg-slate-400",
+    ring: "",
+  },
 };
 
 const TAG_COLORS = [
@@ -59,18 +85,69 @@ function relativeDate(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString();
 }
 
+function absoluteDate(ts: number): string {
+  const d = new Date(ts * 1000);
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function dateBucket(ts: number): string {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const mDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.floor((today.getTime() - mDate.getTime()) / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
+
 function parseTags(raw: string): string[] {
   try { return JSON.parse(raw) ?? []; } catch { return []; }
 }
 
+// ── TagPill ──────────────────────────────────────────────────────────────────
+function TagPill({ tag, onClick, active }: { tag: string; onClick?: () => void; active?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "text-xs px-2 py-0.5 rounded-full flex items-center gap-1 transition-all",
+        tagColor(tag),
+        active ? "ring-1 ring-white/30" : "hover:opacity-80"
+      )}
+    >
+      <Tag className="w-2.5 h-2.5" />
+      {tag}
+    </button>
+  );
+}
+
+// ── ImportanceBadge ──────────────────────────────────────────────────────────
+function ImportanceBadge({ importance }: { importance: Importance }) {
+  const cfg = IMPORTANCE_CONFIG[importance] ?? IMPORTANCE_CONFIG.normal;
+  return (
+    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", cfg.badge)}>
+      {cfg.label}
+    </span>
+  );
+}
+
 // ── MemoryCard ───────────────────────────────────────────────────────────────
 function MemoryCard({
-  memory, onDelete, onEdit, onTagClick,
+  memory, onDelete, onEdit, onTagClick, onAgentClick,
 }: {
   memory: Memory;
   onDelete: (id: string) => void;
   onEdit: (m: Memory) => void;
   onTagClick: (tag: string) => void;
+  onAgentClick?: (agentId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const tags = parseTags(memory.tags);
@@ -78,7 +155,7 @@ function MemoryCard({
 
   return (
     <div className={cn(
-      "rounded-xl bg-[#161b27] border border-white/10 p-4 flex flex-col gap-3 transition-all",
+      "rounded-xl bg-[#161b27] border border-white/10 p-4 flex flex-col gap-3 transition-all hover:border-white/20",
       imp.border,
     )}>
       {/* Header */}
@@ -87,6 +164,7 @@ function MemoryCard({
           <h3 className="font-semibold text-white text-sm leading-snug">{memory.title}</h3>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          <ImportanceBadge importance={memory.importance} />
           <button
             onClick={() => onEdit(memory)}
             className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-white/10 transition-colors"
@@ -125,21 +203,17 @@ function MemoryCard({
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {tags.map((t) => (
-            <button
-              key={t}
-              onClick={() => onTagClick(t)}
-              className={cn("text-xs px-2 py-0.5 rounded-full flex items-center gap-1 hover:opacity-80 transition-opacity", tagColor(t))}
-            >
-              <Tag className="w-2.5 h-2.5" />
-              {t}
-            </button>
+            <TagPill key={t} tag={t} onClick={() => onTagClick(t)} />
           ))}
         </div>
       )}
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
-        <div className="flex items-center gap-2">
+        <button
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          onClick={() => memory.agent_id && onAgentClick?.(memory.agent_id)}
+        >
           {memory.agent_name ? (
             <>
               <div
@@ -153,10 +227,120 @@ function MemoryCard({
           ) : (
             <span className="text-xs text-slate-600 italic">No agent</span>
           )}
+        </button>
+        <div className="flex items-center gap-1.5">
+          <Clock className="w-3 h-3 text-slate-600" />
+          <span className="text-[10px] text-slate-600" title={absoluteDate(memory.created_at)}>
+            {relativeDate(memory.created_at)}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={cn("text-[10px] px-1.5 py-0.5 rounded", imp.badge)}>{imp.label}</span>
-          <span className="text-[10px] text-slate-600">{relativeDate(memory.created_at)}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── TimelineEntry ────────────────────────────────────────────────────────────
+function TimelineEntry({
+  memory, onDelete, onEdit, onTagClick, onAgentClick, isLast,
+}: {
+  memory: Memory;
+  onDelete: (id: string) => void;
+  onEdit: (m: Memory) => void;
+  onTagClick: (tag: string) => void;
+  onAgentClick?: (agentId: string) => void;
+  isLast: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const tags = parseTags(memory.tags);
+  const imp = IMPORTANCE_CONFIG[memory.importance] ?? IMPORTANCE_CONFIG.normal;
+
+  return (
+    <div className="flex gap-4">
+      {/* Timeline spine */}
+      <div className="flex flex-col items-center flex-shrink-0">
+        <div className={cn("w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ring-2 ring-[#0f1219]", imp.dot)} />
+        {!isLast && <div className="w-px flex-1 bg-white/10 mt-1" />}
+      </div>
+
+      {/* Card */}
+      <div className={cn(
+        "flex-1 rounded-xl bg-[#161b27] border border-white/10 p-4 mb-4 hover:border-white/20 transition-all",
+        imp.ring,
+      )}>
+        {/* Timestamp */}
+        <div className="flex items-center gap-2 mb-2">
+          <CalendarDays className="w-3 h-3 text-slate-500 flex-shrink-0" />
+          <span className="text-[11px] text-slate-500 font-mono">{absoluteDate(memory.created_at)}</span>
+        </div>
+
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-semibold text-white text-sm leading-snug flex-1 min-w-0">{memory.title}</h3>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <ImportanceBadge importance={memory.importance} />
+            <button
+              onClick={() => onEdit(memory)}
+              className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-white/10 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onDelete(memory.id)}
+              className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div
+          className={cn(
+            "text-slate-400 text-sm leading-relaxed cursor-pointer mb-2",
+            !expanded && "line-clamp-3"
+          )}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {memory.content}
+        </div>
+        {memory.content.length > 200 && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1 mb-2"
+          >
+            {expanded ? <><ChevronUp className="w-3 h-3" /> Show less</> : <><ChevronDown className="w-3 h-3" /> Show more</>}
+          </button>
+        )}
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {tags.map((t) => (
+              <TagPill key={t} tag={t} onClick={() => onTagClick(t)} />
+            ))}
+          </div>
+        )}
+
+        {/* Agent */}
+        <div className="flex items-center pt-2 border-t border-white/5">
+          <button
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            onClick={() => memory.agent_id && onAgentClick?.(memory.agent_id)}
+          >
+            {memory.agent_name ? (
+              <>
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                  style={{ backgroundColor: memory.agent_color ?? "#6366f1" }}
+                >
+                  {memory.agent_name[0].toUpperCase()}
+                </div>
+                <span className="text-xs text-slate-500">{memory.agent_name}</span>
+              </>
+            ) : (
+              <span className="text-xs text-slate-600 italic">No agent</span>
+            )}
+          </button>
         </div>
       </div>
     </div>
@@ -297,98 +481,6 @@ function MemoryModal({
   );
 }
 
-// ── TimelineView ─────────────────────────────────────────────────────────────
-type GroupKey = "today" | "yesterday" | "thisWeek" | "thisMonth" | "older";
-
-const GROUP_ORDER: GroupKey[] = ["today", "yesterday", "thisWeek", "thisMonth", "older"];
-
-const GROUP_LABELS: Record<GroupKey, string> = {
-  today: "Today",
-  yesterday: "Yesterday",
-  thisWeek: "This Week",
-  thisMonth: "This Month",
-  older: "Older",
-};
-
-function getGroupKey(ts: number): GroupKey {
-  const now = new Date();
-  const d = new Date(ts * 1000);
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
-  const startOfYesterday = startOfToday - 86400;
-  const startOfWeek = startOfToday - (now.getDay() === 0 ? 6 : now.getDay() - 1) * 86400;
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000;
-
-  if (ts >= startOfToday) return "today";
-  if (ts >= startOfYesterday) return "yesterday";
-  if (ts >= startOfWeek) return "thisWeek";
-  if (ts >= startOfMonth) return "thisMonth";
-  return "older";
-}
-
-function TimelineView({
-  memories, onDelete, onEdit, onTagClick,
-}: {
-  memories: Memory[];
-  onDelete: (id: string) => void;
-  onEdit: (m: Memory) => void;
-  onTagClick: (tag: string) => void;
-}) {
-  const [collapsed, setCollapsed] = useState<Partial<Record<GroupKey, boolean>>>({});
-
-  const groups = GROUP_ORDER.reduce<Record<GroupKey, Memory[]>>((acc, k) => {
-    acc[k] = [];
-    return acc;
-  }, {} as Record<GroupKey, Memory[]>);
-
-  for (const m of memories) {
-    const key = getGroupKey(m.created_at);
-    groups[key].push(m);
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      {GROUP_ORDER.map((key) => {
-        if (groups[key].length === 0) return null;
-        const isCollapsed = collapsed[key];
-        return (
-          <div key={key}>
-            {/* Group header */}
-            <button
-              onClick={() => setCollapsed((c) => ({ ...c, [key]: !c[key] }))}
-              className="flex items-center gap-2 mb-3 w-full text-left group"
-            >
-              <ChevronDown className={cn(
-                "w-3.5 h-3.5 text-slate-500 transition-transform flex-shrink-0",
-                isCollapsed && "-rotate-90"
-              )} />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 group-hover:text-slate-200">
-                {GROUP_LABELS[key]}
-              </span>
-              <span className="text-xs text-slate-600">({groups[key].length})</span>
-              <div className="flex-1 h-px bg-white/5 ml-2" />
-            </button>
-
-            {/* Cards */}
-            {!isCollapsed && (
-              <div className="flex flex-col gap-3">
-                {groups[key].map((m) => (
-                  <MemoryCard
-                    key={m.id}
-                    memory={m}
-                    onDelete={onDelete}
-                    onEdit={onEdit}
-                    onTagClick={onTagClick}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function MemoryPage() {
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -398,10 +490,10 @@ export default function MemoryPage() {
   const [filterAgent, setFilterAgent] = useState("");
   const [filterImportance, setFilterImportance] = useState<Importance | "all">("all");
   const [filterTag, setFilterTag] = useState("");
-  const [sortDesc, setSortDesc] = useState(true); // true = newest first
-  const [viewMode, setViewMode] = useState<"grid" | "timeline">("grid");
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Memory | null>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [viewMode, setViewMode] = useState<ViewMode>("timeline");
 
   const fetchData = useCallback(async () => {
     const [memRes, agentRes] = await Promise.all([
@@ -436,25 +528,46 @@ export default function MemoryPage() {
     setEditTarget(null);
   }
 
-  // Client-side filtering + sorting
-  const filtered = [...memories].filter((m) => {
-    if (filterAgent && m.agent_id !== filterAgent) return false;
-    if (filterImportance !== "all" && m.importance !== filterImportance) return false;
-    if (filterTag) {
-      const tags = parseTags(m.tags);
-      if (!tags.includes(filterTag)) return false;
-    }
-    if (search) {
-      const q = search.toLowerCase();
-      if (!m.title.toLowerCase().includes(q) && !m.content.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  }).sort((a, b) => sortDesc ? b.created_at - a.created_at : a.created_at - b.created_at);
+  function handleAgentClick(agentId: string) {
+    setFilterAgent(filterAgent === agentId ? "" : agentId);
+  }
+
+  // Client-side filtering
+  const filtered = memories
+    .filter((m) => {
+      if (filterAgent && m.agent_id !== filterAgent) return false;
+      if (filterImportance !== "all" && m.importance !== filterImportance) return false;
+      if (filterTag) {
+        const tags = parseTags(m.tags);
+        if (!tags.includes(filterTag)) return false;
+      }
+      if (search) {
+        const q = search.toLowerCase();
+        if (!m.title.toLowerCase().includes(q) && !m.content.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) =>
+      sortOrder === "newest" ? b.created_at - a.created_at : a.created_at - b.created_at
+    );
 
   // Collect all tags for the tag cloud
   const allTags = Array.from(new Set(memories.flatMap((m) => parseTags(m.tags)))).sort();
 
-  const importanceLevels: Array<Importance | "all"> = ["all", "low", "normal", "high", "critical"];
+  const importanceLevels: Array<Importance | "all"> = ["all", "critical", "high", "normal", "low"];
+
+  // Group by date bucket for timeline
+  const timelineGroups: { bucket: string; items: Memory[] }[] = [];
+  filtered.forEach((m) => {
+    const bucket = dateBucket(m.created_at);
+    const existing = timelineGroups.find((g) => g.bucket === bucket);
+    if (existing) existing.items.push(m);
+    else timelineGroups.push({ bucket, items: [m] });
+  });
+
+  // Stats
+  const criticalCount = memories.filter((m) => m.importance === "critical").length;
+  const highCount = memories.filter((m) => m.importance === "high").length;
 
   return (
     <div className="min-h-screen bg-[#0f1219] text-white px-4 py-6 md:px-8">
@@ -478,6 +591,34 @@ export default function MemoryPage() {
         </button>
       </div>
 
+      {/* Quick stats */}
+      {!loading && memories.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-5">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#161b27] border border-white/10 text-xs">
+            <span className="text-slate-400 font-medium">{memories.length}</span>
+            <span className="text-slate-600">total</span>
+          </div>
+          {criticalCount > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <span className="text-red-400 font-medium">{criticalCount}</span>
+              <span className="text-red-400/60">critical</span>
+            </div>
+          )}
+          {highCount > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span className="text-amber-400 font-medium">{highCount}</span>
+              <span className="text-amber-400/60">high</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#161b27] border border-white/10 text-xs">
+            <span className="text-slate-400 font-medium">{allTags.length}</span>
+            <span className="text-slate-600">tags</span>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -495,9 +636,9 @@ export default function MemoryPage() {
         )}
       </div>
 
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Agent dropdown */}
+      {/* Filter + Controls bar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Agent filter */}
         <select
           value={filterAgent}
           onChange={(e) => setFilterAgent(e.target.value)}
@@ -527,41 +668,7 @@ export default function MemoryPage() {
           ))}
         </div>
 
-        {/* Sort toggle */}
-        <button
-          onClick={() => setSortDesc((d) => !d)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#161b27] border border-white/10 text-slate-400 hover:text-white transition-colors"
-          title={sortDesc ? "Newest first → Oldest first" : "Oldest first → Newest first"}
-        >
-          <ArrowUpDown className="w-3 h-3" />
-          {sortDesc ? "Newest" : "Oldest"}
-        </button>
-
-        {/* View mode toggle */}
-        <div className="flex items-center gap-0.5 ml-auto">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={cn(
-              "p-1.5 rounded-lg transition-colors",
-              viewMode === "grid" ? "bg-violet-600 text-white" : "text-slate-500 hover:text-white"
-            )}
-            title="Grid view"
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setViewMode("timeline")}
-            className={cn(
-              "p-1.5 rounded-lg transition-colors",
-              viewMode === "timeline" ? "bg-violet-600 text-white" : "text-slate-500 hover:text-white"
-            )}
-            title="Timeline view"
-          >
-            <AlignJustify className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Tag filter clear */}
+        {/* Tag filter active */}
         {filterTag && (
           <button
             onClick={() => setFilterTag("")}
@@ -572,24 +679,57 @@ export default function MemoryPage() {
             <X className="w-3 h-3" />
           </button>
         )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Sort toggle */}
+        <button
+          onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-[#161b27] border border-white/10 text-slate-400 hover:text-white transition-colors"
+        >
+          {sortOrder === "newest" ? (
+            <><SortDesc className="w-3.5 h-3.5" /> Newest first</>
+          ) : (
+            <><SortAsc className="w-3.5 h-3.5" /> Oldest first</>
+          )}
+        </button>
+
+        {/* View toggle */}
+        <div className="flex items-center rounded-lg bg-[#161b27] border border-white/10 overflow-hidden">
+          <button
+            onClick={() => setViewMode("timeline")}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors",
+              viewMode === "timeline" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
+            )}
+          >
+            <AlignLeft className="w-3.5 h-3.5" />
+            Timeline
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors",
+              viewMode === "grid" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
+            )}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            Grid
+          </button>
+        </div>
       </div>
 
       {/* Tags cloud */}
       {allTags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-5">
           {allTags.map((t) => (
-            <button
+            <TagPill
               key={t}
+              tag={t}
+              active={filterTag === t}
               onClick={() => setFilterTag(filterTag === t ? "" : t)}
-              className={cn(
-                "text-xs px-2 py-0.5 rounded-full flex items-center gap-1 transition-all",
-                tagColor(t),
-                filterTag === t ? "ring-1 ring-white/30" : "opacity-70 hover:opacity-100"
-              )}
-            >
-              <Tag className="w-2.5 h-2.5" />
-              {t}
-            </button>
+            />
           ))}
         </div>
       )}
@@ -602,7 +742,7 @@ export default function MemoryPage() {
         </p>
       )}
 
-      {/* Grid vs Timeline view */}
+      {/* Content */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
@@ -621,7 +761,39 @@ export default function MemoryPage() {
               : "Start building the collective knowledge base. Add your first memory!"}
           </p>
         </div>
-      ) : viewMode === "grid" ? (
+      ) : viewMode === "timeline" ? (
+        /* Timeline view */
+        <div>
+          {timelineGroups.map((group) => (
+            <div key={group.bucket} className="mb-6">
+              {/* Date bucket header */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#1a2035] border border-white/10 text-xs text-slate-400">
+                  <Clock className="w-3 h-3" />
+                  {group.bucket}
+                  <span className="text-slate-600">· {group.items.length}</span>
+                </div>
+                <div className="flex-1 h-px bg-white/5" />
+              </div>
+              {/* Timeline entries */}
+              <div className="ml-2">
+                {group.items.map((m, idx) => (
+                  <TimelineEntry
+                    key={m.id}
+                    memory={m}
+                    onDelete={handleDelete}
+                    onEdit={openEdit}
+                    onTagClick={(t) => setFilterTag(filterTag === t ? "" : t)}
+                    onAgentClick={handleAgentClick}
+                    isLast={idx === group.items.length - 1}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Grid view */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((m) => (
             <MemoryCard
@@ -630,12 +802,10 @@ export default function MemoryPage() {
               onDelete={handleDelete}
               onEdit={openEdit}
               onTagClick={(t) => setFilterTag(filterTag === t ? "" : t)}
+              onAgentClick={handleAgentClick}
             />
           ))}
         </div>
-      ) : (
-        // Timeline view — group by time period
-        <TimelineView memories={filtered} onDelete={handleDelete} onEdit={openEdit} onTagClick={(t) => setFilterTag(filterTag === t ? "" : t)} />
       )}
 
       {/* Modal */}
