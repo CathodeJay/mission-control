@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import type { CardColumn, CardPriority } from "@/lib/utils";
 import {
-  AlertTriangle, Check, X, Plus, GripVertical, Clock, User, Flag
+  AlertTriangle, Check, X, Plus, GripVertical, Clock, User, Flag, ChevronDown
 } from "lucide-react";
 
 type KanbanCard = {
@@ -109,60 +109,192 @@ function ApprovalCard({ card, onApprove, onDeny }: {
   );
 }
 
-function CardComponent({ card, dragging }: { card: KanbanCard; dragging?: boolean }) {
+/** Parse a description string into renderable lines with checklist detection */
+function parseDescription(text: string): Array<{ type: "checklist-done" | "checklist-todo" | "text"; content: string }> {
+  return text.split("\n").map((line) => {
+    const trimmed = line.trim();
+    if (/^- \[x\]/i.test(trimmed) || /^✅/.test(trimmed)) {
+      return { type: "checklist-done", content: trimmed.replace(/^- \[x\]\s*/i, "").replace(/^✅\s*/, "") };
+    }
+    if (/^- \[ \]/.test(trimmed) || /^- \[\s\]/.test(trimmed)) {
+      return { type: "checklist-todo", content: trimmed.replace(/^- \[\s?\]\s*/, "") };
+    }
+    return { type: "text", content: line };
+  });
+}
+
+function DescriptionBody({ description }: { description: string }) {
+  const lines = parseDescription(description);
+  const hasChecklist = lines.some((l) => l.type === "checklist-done" || l.type === "checklist-todo");
+
+  if (!hasChecklist) {
+    return <p className="text-xs text-slate-400 whitespace-pre-wrap">{description}</p>;
+  }
+
+  return (
+    <ul className="space-y-1">
+      {lines.map((line, i) => {
+        if (line.type === "checklist-done") {
+          return (
+            <li key={i} className="flex items-start gap-2 text-xs text-slate-500">
+              <span className="flex-shrink-0 w-3.5 h-3.5 rounded-sm bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mt-0.5">
+                <Check className="w-2 h-2 text-emerald-400" />
+              </span>
+              <span className="line-through">{line.content}</span>
+            </li>
+          );
+        }
+        if (line.type === "checklist-todo") {
+          return (
+            <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
+              <span className="flex-shrink-0 w-3.5 h-3.5 rounded-sm border border-slate-600 mt-0.5" />
+              <span>{line.content}</span>
+            </li>
+          );
+        }
+        return line.content.trim() ? (
+          <li key={i} className="text-xs text-slate-400 pl-0">{line.content}</li>
+        ) : null;
+      })}
+    </ul>
+  );
+}
+
+function CardComponent({
+  card, dragging, expandedId, onToggleExpand,
+}: {
+  card: KanbanCard;
+  dragging?: boolean;
+  expandedId?: string | null;
+  onToggleExpand?: (id: string) => void;
+}) {
+  const isExpanded = expandedId === card.id;
+
+  const handleExpandClick = (e: React.MouseEvent) => {
+    if (dragging) return;
+    e.stopPropagation();
+    onToggleExpand?.(card.id);
+  };
+
   return (
     <div
       className={cn(
-        "rounded-lg border border-white/10 bg-white/5 p-3 space-y-2 cursor-grab active:cursor-grabbing",
-        dragging && "opacity-50 rotate-1 shadow-2xl"
+        "rounded-lg border border-white/10 bg-white/5 transition-all duration-200",
+        dragging && "opacity-50 rotate-1 shadow-2xl",
+        isExpanded && "border-white/20 bg-white/8 ring-1 ring-white/10",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm text-slate-200 line-clamp-2 flex-1">{card.title}</p>
+      {/* Card header — drag handle + title + expand toggle */}
+      <div className="flex items-start gap-2 p-3 cursor-grab active:cursor-grabbing">
         <GripVertical className="w-4 h-4 text-slate-600 flex-shrink-0 mt-0.5" />
-      </div>
-      {card.description && (
-        <p className="text-xs text-slate-500 line-clamp-2">{card.description}</p>
-      )}
-      <div className="flex items-center justify-between">
-        <PriorityBadge priority={card.priority} />
-        <div className="flex items-center gap-2 text-xs text-slate-600">
-          {card.agent_name && (
-            <span className="flex items-center gap-1">
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ background: card.agent_color || "#6366f1" }}
-              />
-              {card.agent_name}
-            </span>
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <p className={cn("text-sm text-slate-200", !isExpanded && "line-clamp-2")}>{card.title}</p>
+          {!isExpanded && card.description && (
+            <p className="text-xs text-slate-500 line-clamp-2">{card.description}</p>
           )}
-          <Clock className="w-3 h-3" />
-          {new Date(card.created_at * 1000).toLocaleDateString()}
+          {!isExpanded && (
+            <div className="flex items-center justify-between">
+              <PriorityBadge priority={card.priority} />
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                {card.agent_name && (
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full" style={{ background: card.agent_color || "#6366f1" }} />
+                    {card.agent_name}
+                  </span>
+                )}
+                <Clock className="w-3 h-3" />
+                {new Date(card.created_at * 1000).toLocaleDateString()}
+              </div>
+            </div>
+          )}
+          {!isExpanded && card.project_name && (
+            <Badge variant="outline" className="text-xs">{card.project_name}</Badge>
+          )}
         </div>
+        {/* Expand toggle button — not part of drag handle */}
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={handleExpandClick}
+          className={cn(
+            "flex-shrink-0 p-1 rounded hover:bg-white/10 transition-colors text-slate-500 hover:text-slate-300",
+          )}
+          aria-label={isExpanded ? "Collapse card" : "Expand card"}
+        >
+          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", isExpanded && "rotate-180")} />
+        </button>
       </div>
-      {card.project_name && (
-        <Badge variant="outline" className="text-xs">{card.project_name}</Badge>
+
+      {/* Expanded detail panel */}
+      {isExpanded && (
+        <div
+          className="px-3 pb-3 pt-0 space-y-3 border-t border-white/8"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {/* Description / checklist */}
+          {card.description ? (
+            <div className="pt-2">
+              <DescriptionBody description={card.description} />
+            </div>
+          ) : (
+            <p className="pt-2 text-xs text-slate-600 italic">No description.</p>
+          )}
+
+          {/* Metadata */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <div className={cn("flex items-center gap-1 text-xs rounded-full px-2 py-0.5 border",
+              card.priority === "critical" ? "border-red-500/30 bg-red-500/10 text-red-400" :
+              card.priority === "high" ? "border-amber-500/30 bg-amber-500/10 text-amber-400" :
+              card.priority === "medium" ? "border-blue-500/30 bg-blue-500/10 text-blue-400" :
+              "border-slate-600/30 bg-slate-600/10 text-slate-400"
+            )}>
+              <Flag className="w-3 h-3" />
+              {card.priority}
+            </div>
+
+            {card.agent_name && (
+              <div className="flex items-center gap-1 text-xs rounded-full px-2 py-0.5 border border-white/10 bg-white/5 text-slate-300">
+                <span className="w-2 h-2 rounded-full" style={{ background: card.agent_color || "#6366f1" }} />
+                {card.agent_name}
+              </div>
+            )}
+
+            <div className="flex items-center gap-1 text-xs rounded-full px-2 py-0.5 border border-white/10 bg-white/5 text-slate-400">
+              <Clock className="w-3 h-3" />
+              {new Date(card.created_at * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+            </div>
+
+            {card.project_name && (
+              <Badge variant="outline" className="text-xs">{card.project_name}</Badge>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-function SortableCard({ card }: { card: KanbanCard }) {
+function SortableCard({ card, expandedId, onToggleExpand }: {
+  card: KanbanCard;
+  expandedId: string | null;
+  onToggleExpand: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CardComponent card={card} dragging={isDragging} />
+      <CardComponent card={card} dragging={isDragging} expandedId={expandedId} onToggleExpand={onToggleExpand} />
     </div>
   );
 }
 
 function KanbanColumn({
-  column, cards, onAddCard,
+  column, cards, onAddCard, expandedId, onToggleExpand,
 }: {
   column: { id: CardColumn; label: string; color: string };
   cards: KanbanCard[];
   onAddCard: (col: CardColumn) => void;
+  expandedId: string | null;
+  onToggleExpand: (id: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-3 min-w-[240px] w-60 sm:min-w-[260px] sm:w-64 snap-start">
@@ -182,7 +314,7 @@ function KanbanColumn({
       <div className="flex-1 rounded-xl border border-white/8 bg-white/3 p-2 min-h-[400px] space-y-2">
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
-            <SortableCard key={card.id} card={card} />
+            <SortableCard key={card.id} card={card} expandedId={expandedId} onToggleExpand={onToggleExpand} />
           ))}
         </SortableContext>
         {cards.length === 0 && (
@@ -302,6 +434,11 @@ export default function KanbanPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeCard, setActiveCard] = useState<KanbanCard | null>(null);
   const [addDialogCol, setAddDialogCol] = useState<CardColumn | null>(null);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
+  const handleToggleExpand = useCallback((id: string) => {
+    setExpandedCardId((prev) => (prev === id ? null : id));
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -430,6 +567,8 @@ export default function KanbanPage() {
               column={col}
               cards={colCards(col.id)}
               onAddCard={(c) => setAddDialogCol(c)}
+              expandedId={expandedCardId}
+              onToggleExpand={handleToggleExpand}
             />
           ))}
         </div>
