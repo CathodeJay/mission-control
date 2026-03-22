@@ -106,8 +106,8 @@ export const agents: Agent[] = [
     lastActive: "now",
   },
   {
-    id: "mercury",
-    name: "Mercury 🪐",
+    id: "callisto",
+    name: "Callisto",
     role: "Full Stack Dev",
     status: "online",
     currentTask: "Mission Control development",

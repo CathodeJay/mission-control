@@ -125,7 +125,7 @@ function initSchema(db: Database.Database) {
     -- Seed default agents if empty
     INSERT OR IGNORE INTO agents (id, name, role, bio, color, avatar_seed, avatar_style) VALUES
       ('jupiter', 'Jupiter', 'COO', 'Chief Operating Officer. Translates vision into operations.', '#8b5cf6', 'jupiter-coo', 'bottts'),
-      ('mercury', 'Mercury', 'Full Stack Dev', 'Builder. Ships code, builds systems, makes things real.', '#06b6d4', 'mercury-dev', 'bottts');
+      ('callisto', 'Callisto', 'Full Stack Dev', 'Builder. Ships code, builds systems, makes things real.', '#06b6d4', 'callisto-dev', 'bottts');
 
     -- Seed sample projects if empty  
     INSERT OR IGNORE INTO projects (id, name, description, status, color) VALUES

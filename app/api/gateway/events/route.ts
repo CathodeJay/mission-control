@@ -105,13 +105,13 @@ export async function GET() {
               // Ensure session object is valid before accessing properties
               if (!session || typeof session.key !== 'string') continue;
 
-              // Resolve agent ID: main session = jupiter, subagent = mercury (most recent), others by session_id
+              // Resolve agent ID: main session = jupiter, subagent = callisto (most recent), others by session_id
               let agentId: string | null = null;
               if (session.key === "agent:main:main") {
                 agentId = "jupiter";
               } else if (session.key.startsWith("agent:main:subagent:") && session.key === latestSubagentKey) {
-                // Map most recently active subagent to mercury
-                agentId = sessionIdMap[session.key] || "mercury";
+                // Map most recently active subagent to callisto
+                agentId = sessionIdMap[session.key] || "callisto";
               } else if (sessionIdMap[session.key]) {
                 agentId = sessionIdMap[session.key];
               }

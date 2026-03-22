@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: AgentStatus }) {
 
 const KNOWN_HIERARCHY: Record<string, { rank: number; icon: React.ElementType; reportsTo: string | null; badge: string }> = {
   jupiter: { rank: 0, icon: Crown, reportsTo: null, badge: "COO" },
-  mercury: { rank: 1, icon: Code2, reportsTo: "jupiter", badge: "Dev" },
+  callisto: { rank: 1, icon: Code2, reportsTo: "jupiter", badge: "Dev" },
 };
 
 function getHierarchyInfo(agentId: string) {
@@ -474,7 +474,9 @@ export default function AgentsPage() {
                   </div>
                   <p className="text-xs text-slate-400 mb-0.5">{agent.role}</p>
                   {agent.model && (
-                    <p className="text-[10px] text-slate-600 font-mono mb-1">{agent.model}</p>
+                    <p className="text-[10px] text-slate-600 font-mono mb-1">
+                      {agent.model.replace(/^openrouter\//, "")}
+                    </p>
                   )}
                   <StatusBadge status={agent.status} />
                   {agent.current_task && agent.status !== "idle" ? (

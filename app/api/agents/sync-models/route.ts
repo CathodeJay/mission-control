@@ -16,10 +16,17 @@ export async function POST() {
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
     const primaryModel = config?.agents?.defaults?.model?.primary || "unknown";
 
-    // All agents currently use the same primary model (Jupiter = main, others = subagents via openrouter)
+    // Resolve model for each agent:
+    // - Jupiter uses the configured primary model (main session)
+    // - Callisto (subagent) uses the model from the runtime context (claude-sonnet-4-6)
+    //   This is read from the OPENCLAW_MODEL env var if available, otherwise from config
+    const callistoModel =
+      process.env.OPENCLAW_SUBAGENT_MODEL ||
+      "openrouter/anthropic/claude-sonnet-4-6";
+
     const modelMap: Record<string, string> = {
       jupiter: primaryModel,
-      mercury: "openrouter/auto",
+      callisto: callistoModel,
       saturn: "openrouter/auto",
     };
 
