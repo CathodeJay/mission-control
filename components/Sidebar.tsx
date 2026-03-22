@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Users, KanbanSquare, FolderKanban,
-  BookOpen, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain, FileText
+  BookOpen, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain, FileText, FlaskConical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ const NAV = [
   { href: "/calendar", icon: CalendarClock, label: "Calendar" },
   { href: "/memory", icon: Brain, label: "Memory" },
   { href: "/documents", icon: FileText, label: "Documents" },
+  { href: "/research-lab", icon: FlaskConical, label: "Research Lab" },
 ];
 
 export function Sidebar() {
