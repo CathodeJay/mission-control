@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, Plus, Pencil, ChevronDown, ChevronUp, RefreshCw, Trash2 } from "lucide-react";
+import { BookOpen, Plus, Pencil, ChevronDown, ChevronUp, RefreshCw, Trash2, Search, X } from "lucide-react";
 
 type JournalEntry = {
   id: string;
@@ -264,11 +264,63 @@ function EntryFormDialog({
   );
 }
 
+// ── Time-grouping helpers ─────────────────────────────────────────────────────
+
+type GroupLabel =
+  | "This Week"
+  | "Last Week"
+  | "Last Month"
+  | "Past Months"
+  | "Past Years";
+
+function getGroupLabel(dateStr: string, now: Date): GroupLabel {
+  const entry = new Date(dateStr + "T00:00:00");
+
+  // Week boundaries (Monday-based)
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const mondayOffset = (dayOfWeek + 6) % 7; // days since last Monday
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - mondayOffset);
+  thisMonday.setHours(0, 0, 0, 0);
+
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
+
+  if (entry >= thisMonday) return "This Week";
+  if (entry >= lastMonday) return "Last Week";
+
+  // "Last Month" = the calendar month immediately before the current month
+  const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const lastMonthIndex = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+  if (
+    entry.getFullYear() === lastMonthYear &&
+    entry.getMonth() === lastMonthIndex
+  ) {
+    return "Last Month";
+  }
+
+  // "Past Months" = same year, but older than last month
+  if (entry.getFullYear() === now.getFullYear()) return "Past Months";
+
+  return "Past Years";
+}
+
+const GROUP_ORDER: GroupLabel[] = [
+  "This Week",
+  "Last Week",
+  "Last Month",
+  "Past Months",
+  "Past Years",
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function JournalPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<(EntryForm & { id?: string }) | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -280,6 +332,32 @@ export default function JournalPage() {
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
+
+  // ── Search filtering ───────────────────────────────────────────────────────
+  const filteredEntries = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((e) =>
+      [e.accomplishments, e.lessons_learned, e.open_items, e.agent_notes]
+        .some((field) => field?.toLowerCase().includes(q))
+    );
+  }, [entries, searchQuery]);
+
+  // ── Time grouping ──────────────────────────────────────────────────────────
+  const groupedEntries = useMemo(() => {
+    const now = new Date();
+    const groups: Record<GroupLabel, JournalEntry[]> = {
+      "This Week": [],
+      "Last Week": [],
+      "Last Month": [],
+      "Past Months": [],
+      "Past Years": [],
+    };
+    for (const entry of filteredEntries) {
+      groups[getGroupLabel(entry.date, now)].push(entry);
+    }
+    return groups;
+  }, [filteredEntries]);
 
   function openNew() {
     setEditEntry({ ...EMPTY_FORM });
@@ -323,6 +401,9 @@ export default function JournalPage() {
     fetchEntries();
   }
 
+  const totalFiltered = filteredEntries.length;
+  const isSearching = searchQuery.trim().length > 0;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -343,7 +424,36 @@ export default function JournalPage() {
         </div>
       </div>
 
-      {/* Entry list */}
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Search journal entries…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-lg border border-white/10 bg-white/5 pl-9 pr-9 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500/50 transition-colors"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Search result count */}
+      {isSearching && (
+        <p className="text-xs text-slate-500">
+          {totalFiltered === 0
+            ? "No entries match your search."
+            : `${totalFiltered} entr${totalFiltered === 1 ? "y" : "ies"} found`}
+        </p>
+      )}
+
+      {/* Empty state */}
       {entries.length === 0 && !loading && (
         <div className="rounded-xl border border-white/10 bg-white/5 p-12 text-center">
           <BookOpen className="w-10 h-10 mx-auto mb-3 text-slate-600" />
@@ -358,16 +468,49 @@ export default function JournalPage() {
         </div>
       )}
 
-      <div className="space-y-3">
-        {entries.map((entry) => (
-          <EntryCard
-            key={entry.id}
-            entry={entry}
-            onEdit={openEdit}
-            onDelete={handleDelete}
-          />
-        ))}
-      </div>
+      {/* No search results (but entries exist) */}
+      {entries.length > 0 && totalFiltered === 0 && isSearching && (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-10 text-center">
+          <Search className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+          <p className="text-slate-400 font-medium">No matching entries</p>
+          <p className="text-sm text-slate-600 mt-1">Try a different search term.</p>
+        </div>
+      )}
+
+      {/* Grouped entry list */}
+      {totalFiltered > 0 && (
+        <div className="space-y-8">
+          {GROUP_ORDER.map((label) => {
+            const group = groupedEntries[label];
+            if (!group || group.length === 0) return null;
+            return (
+              <div key={label} className="space-y-3">
+                {/* Group header */}
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                    {label}
+                  </h2>
+                  <div className="flex-1 border-t border-white/5" />
+                  <span className="text-xs text-slate-600 tabular-nums">
+                    {group.length}
+                  </span>
+                </div>
+                {/* Entries in this group */}
+                <div className="space-y-3">
+                  {group.map((entry) => (
+                    <EntryCard
+                      key={entry.id}
+                      entry={entry}
+                      onEdit={openEdit}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Form dialog */}
       {editEntry && (
