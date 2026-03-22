@@ -220,19 +220,6 @@ OPENCLAW_GATEWAY_TOKEN=your-token-here
 
 ---
 
-## Vercel Artifacts (Present But Not Used)
-
-The repo contains Vercel-related files from early exploration. These can be safely ignored for self-hosted operation:
-- `.vercel/project.json` — Vercel project metadata (not needed)
-- `.vercelignore` — Vercel deployment exclusions (not needed)
-- `public/vercel.svg` — Vercel logo in public assets (not needed)
-
-The app is fully functional without Vercel. The Next.js build is standard and runs anywhere Node.js runs.
-
-**No Vercel-specific APIs** are used in the application code. All API routes use standard Node.js runtime (`export const runtime = "nodejs"`) for compatibility with `better-sqlite3`.
-
----
-
 ## Real-Time Updates
 
 The browser uses **Server-Sent Events (SSE)** — not WebSocket — for live updates:
