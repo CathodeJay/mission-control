@@ -82,7 +82,7 @@ export default function DashboardPage() {
       fetch("/api/agents").then((r) => r.json()),
     ]);
     setMetrics(m);
-    setAgents(a);
+    setAgents(Array.isArray(a) ? a : (a.agents ?? []));
   }, []);
 
   useEffect(() => {
