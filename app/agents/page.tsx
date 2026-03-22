@@ -1,3 +1,12 @@
+// AGENT STATUS TRACKING — MANDATORY FOR ALL AGENTS
+// Every agent MUST call agent-status.sh at the start and end of every task:
+//   START: agent-status.sh <agent_id> <status> "<description>"
+//   END:   agent-status.sh <agent_id> idle
+// Example: agent-status.sh mercury executing "Building new feature"
+//          agent-status.sh mercury idle
+// Agent IDs: jupiter, mercury, saturn
+// Statuses: thinking, working, idle, awaiting_approval, error
+
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -443,11 +452,11 @@ export default function AgentsPage() {
         </Dialog>
       </div>
 
-      {/* Team hierarchy — command structure */}
-      <TeamHierarchy agents={agents} />
-
       {/* Office scene */}
       <OfficeScene agents={agents} />
+
+      {/* Team hierarchy — command structure */}
+      <TeamHierarchy agents={agents} />
 
       {/* Agent cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

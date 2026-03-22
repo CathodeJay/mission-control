@@ -1,3 +1,12 @@
+// AGENT STATUS TRACKING — MANDATORY FOR ALL AGENTS
+// Every agent MUST call agent-status.sh at the start and end of every task:
+//   START: agent-status.sh <agent_id> <status> "<description>"
+//   END:   agent-status.sh <agent_id> idle
+// Example: agent-status.sh mercury executing "Building new feature"
+//          agent-status.sh mercury idle
+// Agent IDs: jupiter, mercury, saturn
+// Statuses: thinking, working, idle, awaiting_approval, error
+
 import { NextResponse } from "next/server";
 import { getGatewayClient } from "@/lib/gateway";
 import { getDb } from "@/lib/db";
