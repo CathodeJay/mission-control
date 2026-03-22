@@ -99,6 +99,17 @@ function initSchema(db: Database.Database) {
       total_tokens INTEGER DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS memories (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      agent_id TEXT REFERENCES agents(id),
+      tags TEXT DEFAULT '[]',
+      importance TEXT DEFAULT 'normal',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
     -- Seed default agents if empty
     INSERT OR IGNORE INTO agents (id, name, role, bio, color, avatar_seed, avatar_style) VALUES
       ('jupiter', 'Jupiter', 'COO', 'Chief Operating Officer. Translates vision into operations.', '#8b5cf6', 'jupiter-coo', 'bottts'),

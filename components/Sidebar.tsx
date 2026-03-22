@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Users, KanbanSquare, FolderKanban,
-  Activity, ChevronLeft, ChevronRight, Zap, CalendarClock
+  Activity, ChevronLeft, ChevronRight, Zap, CalendarClock, Brain
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/projects", icon: FolderKanban, label: "Projects" },
   { href: "/activity", icon: Activity, label: "Activity" },
   { href: "/calendar", icon: CalendarClock, label: "Calendar" },
+  { href: "/memory", icon: Brain, label: "Memory" },
 ];
 
 export function Sidebar() {
