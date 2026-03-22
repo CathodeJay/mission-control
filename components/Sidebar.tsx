@@ -76,25 +76,27 @@ export function Sidebar() {
       </aside>
 
       {/* ── Mobile bottom nav ────────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0d1117] border-t border-white/10 flex items-center justify-around px-0.5 pb-safe">
-        {NAV.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg flex-1 justify-center transition-colors",
-                active
-                  ? "text-violet-400"
-                  : "text-slate-500 active:text-slate-300"
-              )}
-            >
-              <Icon className={cn("w-4 h-4", active && "drop-shadow-[0_0_6px_rgba(139,92,246,0.8)]")} />
-              <span className="text-[8px] leading-tight truncate max-w-full">{label}</span>
-            </Link>
-          );
-        })}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0d1117] border-t border-white/10 pb-safe">
+        <div className="grid grid-cols-4">
+          {NAV.map(({ href, icon: Icon, label }) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex flex-col items-center gap-0.5 px-1 py-2 transition-colors",
+                  active
+                    ? "text-violet-400"
+                    : "text-slate-500 active:text-slate-300"
+                )}
+              >
+                <Icon className={cn("w-4 h-4", active && "drop-shadow-[0_0_6px_rgba(139,92,246,0.8)]")} />
+                <span className="text-[9px] leading-tight truncate max-w-full">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </>
   );
