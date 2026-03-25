@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
   PointerSensor, TouchSensor, useSensor, useSensors, closestCenter,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext, useSortable, verticalListSortingStrategy,
@@ -11,7 +12,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,9 @@ const COLUMNS: { id: CardColumn; label: string; color: string }[] = [
   { id: "in_progress", label: "In Progress", color: "text-violet-400" },
   { id: "done", label: "Done", color: "text-emerald-400" },
 ];
+
+// Prefix used to distinguish column drop targets from card IDs
+const COL_PREFIX = "col::";
 
 const PRIORITY_STYLES: Record<CardPriority, string> = {
   low: "text-slate-400",
@@ -296,6 +300,9 @@ function KanbanColumn({
   expandedId: string | null;
   onToggleExpand: (id: string) => void;
 }) {
+  // Register the column container as a drop target so empty columns accept drops
+  const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${column.id}` });
+
   return (
     <div className="flex flex-col gap-3 min-w-[240px] w-60 sm:min-w-[260px] sm:w-64 snap-start">
       <div className="flex items-center justify-between px-1">
@@ -311,14 +318,23 @@ function KanbanColumn({
         </button>
       </div>
 
-      <div className="flex-1 rounded-xl border border-white/8 bg-white/3 p-2 min-h-[400px] space-y-2">
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "flex-1 rounded-xl border border-white/8 bg-white/3 p-2 min-h-[400px] space-y-2 transition-colors",
+          isOver && "border-violet-500/40 bg-violet-500/5",
+        )}
+      >
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
             <SortableCard key={card.id} card={card} expandedId={expandedId} onToggleExpand={onToggleExpand} />
           ))}
         </SortableContext>
         {cards.length === 0 && (
-          <div className="flex items-center justify-center h-32 text-xs text-slate-700 italic">
+          <div className={cn(
+            "flex items-center justify-center h-32 text-xs italic transition-colors",
+            isOver ? "text-violet-400" : "text-slate-700"
+          )}>
             Drop cards here
           </div>
         )}
@@ -326,6 +342,9 @@ function KanbanColumn({
     </div>
   );
 }
+
+// Sentinel values for "none" in Select components (Radix doesn't support empty string values)
+const NONE_VALUE = "__none__";
 
 function AddCardDialog({
   open, onClose, defaultColumn, agents, projects, onAdd,
@@ -337,7 +356,7 @@ function AddCardDialog({
 }) {
   const [form, setForm] = useState({
     title: "", description: "", priority: "medium" as CardPriority,
-    assigned_agent_id: "", project_id: "", column: defaultColumn,
+    assigned_agent_id: NONE_VALUE, project_id: NONE_VALUE, column: defaultColumn,
   });
   const [saving, setSaving] = useState(false);
 
@@ -353,9 +372,14 @@ function AddCardDialog({
           onSubmit={async (e) => {
             e.preventDefault();
             setSaving(true);
-            await onAdd(form);
+            // Convert sentinel back to null/empty for the API
+            await onAdd({
+              ...form,
+              assigned_agent_id: form.assigned_agent_id === NONE_VALUE ? "" : form.assigned_agent_id,
+              project_id: form.project_id === NONE_VALUE ? "" : form.project_id,
+            });
             setSaving(false);
-            setForm({ title: "", description: "", priority: "medium", assigned_agent_id: "", project_id: "", column: defaultColumn });
+            setForm({ title: "", description: "", priority: "medium", assigned_agent_id: NONE_VALUE, project_id: NONE_VALUE, column: defaultColumn });
             onClose();
           }}
           className="space-y-3"
@@ -400,7 +424,7 @@ function AddCardDialog({
               <Select value={form.assigned_agent_id} onValueChange={(v) => setForm({ ...form, assigned_agent_id: v })}>
                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={NONE_VALUE}>None</SelectItem>
                   {agents.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -412,7 +436,7 @@ function AddCardDialog({
               <Select value={form.project_id} onValueChange={(v) => setForm({ ...form, project_id: v })}>
                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={NONE_VALUE}>None</SelectItem>
                   {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -451,9 +475,9 @@ export default function KanbanPage() {
       fetch("/api/agents").then((r) => r.json()),
       fetch("/api/projects").then((r) => r.json()),
     ]);
-    setCards(c);
-    setAgents(a);
-    setProjects(p);
+    setCards(Array.isArray(c) ? c : []);
+    setAgents(Array.isArray(a) ? a : []);
+    setProjects(Array.isArray(p) ? p : []);
   }, []);
 
   useEffect(() => {
@@ -486,29 +510,55 @@ export default function KanbanPage() {
     if (!over || active.id === over.id) return;
 
     const draggedCard = cards.find((c) => c.id === active.id);
-    const overCard = cards.find((c) => c.id === over.id);
-    if (!draggedCard || !overCard) return;
+    if (!draggedCard) return;
 
-    // Move to new column if different
-    if (draggedCard.column !== overCard.column) {
+    // Determine the target column — either from a column drop zone or from the card being hovered
+    let targetColumn: CardColumn | null = null;
+    const overId = String(over.id);
+
+    if (overId.startsWith(COL_PREFIX)) {
+      // Dropped directly onto a column container
+      targetColumn = overId.slice(COL_PREFIX.length) as CardColumn;
+    } else {
+      // Dropped onto another card — use that card's column
+      const overCard = cards.find((c) => c.id === overId);
+      if (overCard) targetColumn = overCard.column;
+    }
+
+    if (!targetColumn || draggedCard.column === targetColumn) return;
+
+    // Optimistic UI update
+    setCards((prev) =>
+      prev.map((c) => c.id === draggedCard.id ? { ...c, column: targetColumn! } : c)
+    );
+
+    try {
       await fetch(`/api/kanban/${draggedCard.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ column: overCard.column }),
+        body: JSON.stringify({ column: targetColumn }),
       });
-      setCards((prev) =>
-        prev.map((c) => c.id === draggedCard.id ? { ...c, column: overCard.column } : c)
-      );
+    } catch {
+      // Rollback on error
+      await fetchAll();
     }
   };
 
   const addCard = async (data: Partial<KanbanCard>) => {
-    await fetch("/api/kanban", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    await fetchAll();
+    try {
+      const res = await fetch("/api/kanban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        console.error("Failed to create card:", await res.text());
+        return;
+      }
+      await fetchAll();
+    } catch (err) {
+      console.error("Error creating card:", err);
+    }
   };
 
   const handleApprove = async (id: string) => {
