@@ -27,9 +27,17 @@ function runMigrations(db: Database.Database) {
   // SQLite doesn't support IF NOT EXISTS for columns — use try/catch
   const migrations = [
     "ALTER TABLE agents ADD COLUMN model TEXT",
+    `CREATE TABLE IF NOT EXISTS documents (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT,
+      project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch())
+    )`,
   ];
   for (const sql of migrations) {
-    try { db.exec(sql); } catch { /* column already exists */ }
+    try { db.exec(sql); } catch { /* already exists */ }
   }
 }
 
